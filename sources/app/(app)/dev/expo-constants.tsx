@@ -26,7 +26,8 @@ function JsonViewer({ title, data, defaultExpanded = false }: JsonViewerProps) {
         try {
             await Clipboard.setStringAsync(JSON.stringify(data, null, 2));
             Modal.alert('Copied', 'JSON data copied to clipboard');
-        } catch (error) {
+        } catch {
+            // Clipboard may not be available on all platforms
             Modal.alert('Error', 'Failed to copy to clipboard');
         }
     };
@@ -156,8 +157,8 @@ function ExpoConstantsScreen() {
     try {
         // @ts-ignore - manifest might not be typed
         updatesManifest = Updates.manifest;
-    } catch (e) {
-        // expo-updates might not be available
+    } catch {
+        // expo-updates might not be available on all platforms
     }
     
     // Get update ID and channel
@@ -174,8 +175,8 @@ function ExpoConstantsScreen() {
         channel = Updates.channel;
         // @ts-ignore
         isEmbeddedLaunch = Updates.isEmbeddedLaunch;
-    } catch (e) {
-        // Properties might not be available
+    } catch {
+        // Properties might not be available on all platforms
     }
     
     // Check if running embedded update

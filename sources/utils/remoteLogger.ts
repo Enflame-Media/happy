@@ -51,9 +51,8 @@ export function monkeyPatchConsoleForRemoteLoggingForFasterAiAutoDebuggingOnlyIn
           platform: 'ios', // or android
         })
       })
-    } catch (e) {
-      // console.error('[RemoteLogger] Failed to send log:', e)
-      // Fail silently
+    } catch {
+      // Remote logging is optional - silently ignore failures
     }
   }
 

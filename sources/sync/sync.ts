@@ -984,8 +984,9 @@ class Sync {
             log.log('📝 Fetching todos...');
             await initializeTodoSync(this.credentials);
             log.log('📝 Todos loaded');
-        } catch (error) {
-            log.log('📝 Failed to fetch todos:');
+        } catch {
+            // Todo fetching is non-critical - UI shows appropriate state on failure
+            log.log('📝 Failed to fetch todos');
         }
     }
 

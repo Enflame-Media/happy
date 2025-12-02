@@ -218,8 +218,8 @@ function FileScreen() {
                         let decodedContent: string;
                         try {
                             decodedContent = atob(response.content);
-                        } catch (decodeError) {
-                            // If base64 decode fails, treat as binary
+                        } catch {
+                            // Base64 decode failure indicates binary content
                             setFileContent({
                                 content: '',
                                 encoding: 'base64',

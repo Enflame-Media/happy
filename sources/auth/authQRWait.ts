@@ -39,7 +39,8 @@ export async function authQRWait(keypair: QRAuthKeyPair, onProgress?: (dots: num
                     return null;
                 }
             }
-        } catch (error) {
+        } catch {
+            // Auth polling is expected to fail occasionally (network issues, timeout)
             console.log('\n\nFailed to check authentication status. Please try again.');
             return null;
         }

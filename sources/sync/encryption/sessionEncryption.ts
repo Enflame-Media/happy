@@ -128,7 +128,8 @@ export class SessionEncryption {
             const encryptedData = decodeBase64(encrypted, 'base64');
             const decrypted = await this.encryptor.decrypt([encryptedData]);
             return decrypted[0] || null;
-        } catch (error) {
+        } catch {
+            // Decryption failures expected for invalid/corrupted data - return null
             return null;
         }
     }

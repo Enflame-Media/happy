@@ -21,6 +21,9 @@ export class SecretBoxEncryption implements Encryptor, Decryptor {
     private readonly secretKey: Uint8Array;
 
     constructor(secretKey: Uint8Array) {
+        if (secretKey.length !== 32) {
+            throw new Error(`Invalid SecretBox key length: expected 32 bytes, got ${secretKey.length} bytes`);
+        }
         this.secretKey = secretKey;
     }
 
@@ -48,6 +51,9 @@ export class BoxEncryption implements Encryptor, Decryptor {
     private readonly publicKey: Uint8Array;
 
     constructor(seed: Uint8Array) {
+        if (seed.length !== 32) {
+            throw new Error(`Invalid BoxEncryption seed length: expected 32 bytes, got ${seed.length} bytes`);
+        }
         // Use the seed to generate a proper keypair
         const keypair = sodium.crypto_box_seed_keypair(seed);
         this.privateKey = keypair.privateKey;
@@ -83,6 +89,9 @@ export class AES256Encryption implements Encryptor, Decryptor {
     private readonly secretKeyB64: string;
 
     constructor(secretKey: Uint8Array) {
+        if (secretKey.length !== 32) {
+            throw new Error(`Invalid AES-256 key length: expected 32 bytes, got ${secretKey.length} bytes`);
+        }
         this.secretKey = secretKey;
         this.secretKeyB64 = encodeBase64(secretKey);
     }
@@ -117,7 +126,8 @@ export class AES256Encryption implements Encryptor, Decryptor {
                     // Parse JSON string back to object
                     results.push(JSON.parse(decryptedString));
                 }
-            } catch (error) {
+            } catch {
+                // AES decryption/JSON parse failure - invalid or corrupted data
                 results.push(null);
             }
         }

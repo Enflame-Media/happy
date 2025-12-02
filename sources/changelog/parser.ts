@@ -8,7 +8,8 @@ export function getChangelogData(): ChangelogData {
         // Fallback to require the generated JSON file
         try {
             changelogData = require('./changelog.json') as ChangelogData;
-        } catch (error) {
+        } catch {
+            // Changelog file may not exist during development or first build
             console.warn('Changelog data not found, returning empty changelog');
             changelogData = { entries: [], latestVersion: 0 };
         }

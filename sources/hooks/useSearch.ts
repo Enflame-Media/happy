@@ -62,14 +62,10 @@ export function useSearch<T>(
                 setResults(searchResults);
                 break; // Success, exit the retry loop
                 
-            } catch (error) {
-                // Wait before retrying
+            } catch {
+                // Search failed - retry with exponential backoff
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
-                
-                // Exponential backoff with max delay of 30 seconds
                 retryDelay = Math.min(retryDelay * 2, 30000);
-                
-                // Continue retrying (loop will continue)
             }
         }
         
