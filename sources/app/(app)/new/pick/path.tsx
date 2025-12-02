@@ -10,7 +10,6 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { layout } from '@/components/layout';
 import { t } from '@/text';
 import { MultiTextInput, MultiTextInputHandle } from '@/components/MultiTextInput';
-import { callbacks } from '../index';
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -62,7 +61,7 @@ function PathPickerScreen() {
     const { theme } = useUnistyles();
     const styles = stylesheet;
     const router = useRouter();
-    const params = useLocalSearchParams<{ machineId?: string; selectedPath?: string }>();
+    const params = useLocalSearchParams<{ machineId?: string; selectedPath?: string; returnPrompt?: string; returnDataId?: string }>();
     const machines = useAllMachines();
     const sessions = useSessions();
     const inputRef = useRef<MultiTextInputHandle>(null);
@@ -122,10 +121,15 @@ function PathPickerScreen() {
 
     const handleSelectPath = React.useCallback(() => {
         const pathToUse = customPath.trim() || machine?.metadata?.homeDir || '/home';
-        // Set the selection and go back
-        callbacks.onPathSelected(pathToUse);
-        router.back();
-    }, [customPath, router, machine]);
+        // Navigate back with the selected path as a URL param
+        // This works on web where component remounts, unlike the callback pattern
+        // Preserve original params (prompt, dataId) that were passed through
+        const returnParams = new URLSearchParams();
+        returnParams.set('selectedPath', encodeURIComponent(pathToUse));
+        if (params.returnPrompt) returnParams.set('prompt', params.returnPrompt);
+        if (params.returnDataId) returnParams.set('dataId', params.returnDataId);
+        router.replace(`/new?${returnParams.toString()}`);
+    }, [customPath, router, machine, params.returnPrompt, params.returnDataId]);
 
     if (!machine) {
         return (

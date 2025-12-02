@@ -22,16 +22,13 @@ import { getTempData, type NewSessionData } from '@/utils/tempDataStore';
 import { linkTaskToSession } from '@/-zen/model/taskSessionLink';
 import { PermissionMode, ModelMode } from '@/components/PermissionModeSelector';
 
-// Simple temporary state for passing selections back from picker screens
+// Simple temporary state for passing machine selection back from picker screen
+// Note: Path selection uses URL params instead (works better on web)
 let onMachineSelected: (machineId: string) => void = () => { };
-let onPathSelected: (path: string) => void = () => { };
 export const callbacks = {
     onMachineSelected: (machineId: string) => {
         onMachineSelected(machineId);
     },
-    onPathSelected: (path: string) => {
-        onPathSelected(path);
-    }
 }
 
 // Helper function to get the most recent path for a machine from settings or sessions
@@ -88,7 +85,7 @@ const updateRecentMachinePaths = (
 function NewSessionScreen() {
     const { theme } = useUnistyles();
     const router = useRouter();
-    const { prompt, dataId } = useLocalSearchParams<{ prompt?: string; dataId?: string }>();
+    const { prompt, dataId, selectedPath: pathFromParam } = useLocalSearchParams<{ prompt?: string; dataId?: string; selectedPath?: string }>();
 
     // Try to get data from temporary store first, fallback to direct prompt parameter
     const tempSessionData = React.useMemo(() => {
@@ -194,16 +191,6 @@ function NewSessionScreen() {
         };
     }, [recentMachinePaths]);
 
-    React.useEffect(() => {
-        let handler = (path: string) => {
-            setSelectedPath(path);
-        };
-        onPathSelected = handler;
-        return () => {
-            onPathSelected = () => { };
-        };
-    }, []);
-
     const handleMachineClick = React.useCallback(() => {
         router.push('/new/pick/machine');
     }, []);
@@ -297,14 +284,30 @@ function NewSessionScreen() {
     //
 
     const [selectedPath, setSelectedPath] = React.useState<string>(() => {
+        // Use path from URL param if available (set by path picker on web)
+        if (pathFromParam) {
+            return decodeURIComponent(pathFromParam);
+        }
         // Initialize with the path from the selected machine (which should be the most recent if available)
         return getRecentPathForMachine(selectedMachineId, recentMachinePaths);
     });
+
+    // Also update when pathFromParam changes (for web navigation)
+    React.useEffect(() => {
+        if (pathFromParam) {
+            setSelectedPath(decodeURIComponent(pathFromParam));
+        }
+    }, [pathFromParam]);
     const handlePathClick = React.useCallback(() => {
         if (selectedMachineId) {
-            router.push(`/new/pick/path?machineId=${selectedMachineId}`);
+            // Pass original params so they can be preserved when returning
+            const params = new URLSearchParams();
+            params.set('machineId', selectedMachineId);
+            if (prompt) params.set('returnPrompt', prompt);
+            if (dataId) params.set('returnDataId', dataId);
+            router.push(`/new/pick/path?${params.toString()}`);
         }
-    }, [selectedMachineId, router]);
+    }, [selectedMachineId, router, prompt, dataId]);
 
     // Get selected machine name
     const selectedMachine = React.useMemo(() => {
