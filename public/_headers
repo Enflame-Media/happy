@@ -1,0 +1,21 @@
+# WASM files need correct content-type for proper loading
+/*.wasm
+  Content-Type: application/wasm
+
+# Long-term cache for immutable Expo bundles (content-hashed)
+/_expo/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Long-term cache for asset files
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Disable caching for index.html (OTA updates need fresh HTML)
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Security headers for all responses
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
