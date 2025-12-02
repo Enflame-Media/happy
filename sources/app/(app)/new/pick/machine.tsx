@@ -10,7 +10,6 @@ import { isMachineOnline } from '@/utils/machineUtils';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { layout } from '@/components/layout';
 import { t } from '@/text';
-import { callbacks } from '../index';
 import { ItemList } from '@/components/ItemList';
 
 const stylesheet = StyleSheet.create((theme) => ({
@@ -74,8 +73,9 @@ function MachinePickerScreen() {
     const machines = useAllMachines();
 
     const handleSelectMachine = (machineId: string) => {
-        callbacks.onMachineSelected(machineId);
-        router.back();
+        // Use URL params instead of callbacks - callbacks don't survive component
+        // remount during web navigation (see HAP-241 for the path picker fix)
+        router.replace(`/new?selectedMachineId=${machineId}`);
     };
 
     if (machines.length === 0) {

@@ -22,14 +22,6 @@ import { getTempData, type NewSessionData } from '@/utils/tempDataStore';
 import { linkTaskToSession } from '@/-zen/model/taskSessionLink';
 import { PermissionMode, ModelMode } from '@/components/PermissionModeSelector';
 
-// Simple temporary state for passing machine selection back from picker screen
-// Note: Path selection uses URL params instead (works better on web)
-let onMachineSelected: (machineId: string) => void = () => { };
-export const callbacks = {
-    onMachineSelected: (machineId: string) => {
-        onMachineSelected(machineId);
-    },
-}
 
 // Helper function to get the most recent path for a machine from settings or sessions
 const getRecentPathForMachine = (machineId: string | null, recentPaths: Array<{ machineId: string; path: string }>): string => {
@@ -85,7 +77,7 @@ const updateRecentMachinePaths = (
 function NewSessionScreen() {
     const { theme } = useUnistyles();
     const router = useRouter();
-    const { prompt, dataId, selectedPath: pathFromParam } = useLocalSearchParams<{ prompt?: string; dataId?: string; selectedPath?: string }>();
+    const { prompt, dataId, selectedPath: pathFromParam, selectedMachineId: machineIdFromParam } = useLocalSearchParams<{ prompt?: string; dataId?: string; selectedPath?: string; selectedMachineId?: string }>();
 
     // Try to get data from temporary store first, fallback to direct prompt parameter
     const tempSessionData = React.useMemo(() => {
@@ -175,21 +167,18 @@ function NewSessionScreen() {
         }
     }, [machines, selectedMachineId, recentMachinePaths]);
 
+    // Handle machine selection from URL param (set by machine picker on web)
     React.useEffect(() => {
-        let handler = (machineId: string) => {
-            let machine = storage.getState().machines[machineId];
+        if (machineIdFromParam) {
+            const machine = storage.getState().machines[machineIdFromParam];
             if (machine) {
-                setSelectedMachineId(machineId);
+                setSelectedMachineId(machineIdFromParam);
                 // Also update the path when machine changes
-                const bestPath = getRecentPathForMachine(machineId, recentMachinePaths);
+                const bestPath = getRecentPathForMachine(machineIdFromParam, recentMachinePaths);
                 setSelectedPath(bestPath);
             }
-        };
-        onMachineSelected = handler;
-        return () => {
-            onMachineSelected = () => { };
-        };
-    }, [recentMachinePaths]);
+        }
+    }, [machineIdFromParam, recentMachinePaths]);
 
     const handleMachineClick = React.useCallback(() => {
         router.push('/new/pick/machine');
