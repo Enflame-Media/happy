@@ -92,6 +92,7 @@ class Sync {
 
     // AppState subscription for cleanup
     private appStateSubscription?: { remove: () => void };
+    private socketCleanups: (() => void)[] = [];
     constructor() {
         this.sessionsSync = new InvalidateSync(this.fetchSessions);
         this.settingsSync = new InvalidateSync(this.syncSettings);
@@ -169,6 +170,7 @@ class Sync {
      */
     destroy() {
         this.appStateSubscription?.remove();
+        this.socketCleanups.forEach((cleanup) => cleanup());
     }
 
     async #init() {
@@ -1523,31 +1525,33 @@ class Sync {
     }
 
     private subscribeToUpdates = () => {
-        // Subscribe to message updates
-        apiSocket.onMessage('update', this.handleUpdate.bind(this));
-        apiSocket.onMessage('ephemeral', this.handleEphemeralUpdate.bind(this));
+        // Subscribe to message updates and store cleanup functions
+        this.socketCleanups.push(
+            apiSocket.onMessage('update', this.handleUpdate.bind(this)),
+            apiSocket.onMessage('ephemeral', this.handleEphemeralUpdate.bind(this)),
 
-        // Subscribe to connection state changes
-        apiSocket.onReconnected(() => {
-            log.log('🔌 Socket reconnected');
-            this.sessionsSync.invalidate();
-            this.machinesSync.invalidate();
-            log.log('🔌 Socket reconnected: Invalidating artifacts sync');
-            this.artifactsSync.invalidate();
-            this.friendsSync.invalidate();
-            this.friendRequestsSync.invalidate();
-            this.feedSync.invalidate();
-            const sessionsData = storage.getState().sessionsData;
-            if (sessionsData) {
-                for (const item of sessionsData) {
-                    if (typeof item !== 'string') {
-                        this.messagesSync.get(item.id)?.invalidate();
-                        // Also invalidate git status on reconnection
-                        gitStatusSync.invalidate(item.id);
+            // Subscribe to connection state changes
+            apiSocket.onReconnected(() => {
+                log.log('🔌 Socket reconnected');
+                this.sessionsSync.invalidate();
+                this.machinesSync.invalidate();
+                log.log('🔌 Socket reconnected: Invalidating artifacts sync');
+                this.artifactsSync.invalidate();
+                this.friendsSync.invalidate();
+                this.friendRequestsSync.invalidate();
+                this.feedSync.invalidate();
+                const sessionsData = storage.getState().sessionsData;
+                if (sessionsData) {
+                    for (const item of sessionsData) {
+                        if (typeof item !== 'string') {
+                            this.messagesSync.get(item.id)?.invalidate();
+                            // Also invalidate git status on reconnection
+                            gitStatusSync.invalidate(item.id);
+                        }
                     }
                 }
-            }
-        });
+            })
+        );
     }
 
     private handleUpdate = async (update: unknown) => {
