@@ -143,7 +143,7 @@ function MachineDetailScreen() {
                             Modal.alert('Daemon Stopped', result.message);
                             // Refresh to get updated metadata
                             await sync.refreshMachines();
-                        } catch (error) {
+                        } catch {
                             Modal.alert(t('common.error'), 'Failed to stop daemon. It may not be running.');
                         } finally {
                             setIsStoppingDaemon(false);

@@ -108,7 +108,7 @@ function ServerConfigScreen() {
             }
             
             return true;
-        } catch (err) {
+        } catch {
             setError(t('server.failedToConnectToServer'));
             return false;
         } finally {

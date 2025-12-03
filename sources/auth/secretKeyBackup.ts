@@ -96,7 +96,7 @@ export function formatSecretKeyForBackup(secretKey: string): string {
         // 32 bytes = 256 bits = 52 base32 chars (51.2 rounded up)
         // That's 11 groups of 5 chars (55 chars total)
         return groups.join('-');
-    } catch (error) {
+    } catch {
         throw new Error('Invalid secret key format');
     }
 }
@@ -172,7 +172,7 @@ export function normalizeSecretKey(key: string): string {
             throw new Error('Invalid secret key');
         }
         return trimmed;
-    } catch (error) {
+    } catch {
         // If base64 parsing fails, try parsing as formatted key anyway
         return parseBackupSecretKey(trimmed);
     }

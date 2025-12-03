@@ -121,7 +121,7 @@ async function loadFonts() {
 
                         ...FontAwesome.font,
                     });
-                } catch (e) {
+                } catch {
                     // Ignore
                 }
             })();

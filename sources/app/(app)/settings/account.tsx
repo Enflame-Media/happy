@@ -71,7 +71,7 @@ export default React.memo(() => {
                 await disconnectService(auth.credentials!, service);
                 await sync.refreshProfile();
                 // The profile will be updated via sync
-            } catch (error) {
+            } catch {
                 Modal.alert(t('common.error'), t('errors.disconnectServiceFailed', { service: displayName }));
             } finally {
                 setDisconnectingService(null);
@@ -89,7 +89,7 @@ export default React.memo(() => {
             setCopiedRecently(true);
             setTimeout(() => setCopiedRecently(false), 2000);
             Modal.alert(t('common.success'), t('settingsAccount.secretKeyCopied'));
-        } catch (error) {
+        } catch {
             Modal.alert(t('common.error'), t('settingsAccount.secretKeyCopyFailed'));
         }
     };

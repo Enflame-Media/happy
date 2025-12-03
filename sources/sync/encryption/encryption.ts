@@ -150,7 +150,7 @@ export class Encryption {
             const encryptedData = decodeBase64(encrypted, 'base64');
             const decrypted = await this.legacyEncryption.decrypt([encryptedData]);
             return decrypted[0] || null;
-        } catch (error) {
+        } catch {
             return null;
         }
     }

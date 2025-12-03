@@ -75,7 +75,7 @@ function SessionInfoContent({ session }: { session: Session }) {
         try {
             await Clipboard.setStringAsync(session.id);
             Modal.alert(t('common.success'), t('sessionInfo.happySessionIdCopied'));
-        } catch (error) {
+        } catch {
             Modal.alert(t('common.error'), t('sessionInfo.failedToCopySessionId'));
         }
     }, [session]);
@@ -85,7 +85,7 @@ function SessionInfoContent({ session }: { session: Session }) {
         try {
             await Clipboard.setStringAsync(JSON.stringify(session.metadata, null, 2));
             Modal.alert(t('common.success'), t('sessionInfo.metadataCopied'));
-        } catch (error) {
+        } catch {
             Modal.alert(t('common.error'), t('sessionInfo.failedToCopyMetadata'));
         }
     }, [session]);
@@ -149,7 +149,7 @@ function SessionInfoContent({ session }: { session: Session }) {
         try {
             await Clipboard.setStringAsync(updateCommand);
             Modal.alert(t('common.success'), updateCommand);
-        } catch (error) {
+        } catch {
             Modal.alert(t('common.error'), t('common.error'));
         }
     }, []);
@@ -215,7 +215,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                                 try {
                                     await Clipboard.setStringAsync(session.metadata!.claudeSessionId!);
                                     Modal.alert(t('common.success'), t('sessionInfo.claudeCodeSessionIdCopied'));
-                                } catch (error) {
+                                } catch {
                                     Modal.alert(t('common.error'), t('sessionInfo.failedToCopyClaudeCodeSessionId'));
                                 }
                             }}

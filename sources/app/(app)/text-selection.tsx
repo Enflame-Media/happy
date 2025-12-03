@@ -29,7 +29,7 @@ function TextSelectionScreen() {
         try {
             await Clipboard.setStringAsync(fullText);
             Modal.alert(t('textSelection.textCopied'));
-        } catch (error) {
+        } catch {
             Modal.alert(t('common.error'), t('textSelection.failedToCopy'));
         }
     }, [fullText]);
