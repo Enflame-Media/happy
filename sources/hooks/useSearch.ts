@@ -85,9 +85,10 @@ export function useSearch<T>(
                 }
             }
         } finally {
-            // Only update state if not aborted
+            // Always reset the searching ref (we're no longer searching)
+            isSearchingRef.current = false;
+            // Only update React state if not aborted (to avoid state updates on unmounted component)
             if (!signal.aborted) {
-                isSearchingRef.current = false;
                 setIsSearching(false);
             }
         }
