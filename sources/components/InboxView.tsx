@@ -195,7 +195,7 @@ function HeaderTitleTablet() {
     );
 }
 
-export const InboxView = React.memo(({}: InboxViewProps) => {
+export const InboxView = React.memo((_: InboxViewProps) => {
     const router = useRouter();
     const friends = useAcceptedFriends();
     const friendRequests = useFriendRequests();
