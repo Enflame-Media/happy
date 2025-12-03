@@ -304,8 +304,18 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const shakerRef = React.useRef<ShakeInstance>(null);
     const inputRef = React.useRef<MultiTextInputHandle>(null);
 
-    // Forward ref to the MultiTextInput
-    React.useImperativeHandle(ref, () => inputRef.current!, []);
+    // Forward ref to the MultiTextInput with null safety
+    React.useImperativeHandle(ref, () => ({
+        setTextAndSelection: (text: string, selection: { start: number; end: number }) => {
+            inputRef.current?.setTextAndSelection(text, selection);
+        },
+        focus: () => {
+            inputRef.current?.focus();
+        },
+        blur: () => {
+            inputRef.current?.blur();
+        },
+    }), []);
 
     // Autocomplete state - track text and selection together
     const [inputState, setInputState] = React.useState<TextInputState>({
