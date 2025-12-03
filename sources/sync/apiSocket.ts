@@ -29,7 +29,7 @@ class ApiSocket {
     private socket: Socket | null = null;
     private config: SyncSocketConfig | null = null;
     private encryption: Encryption | null = null;
-    private messageHandlers: Map<string, (data: any) => void> = new Map();
+    private messageHandlers: Map<string, Set<(data: any) => void>> = new Map();
     private reconnectedListeners: Set<() => void> = new Set();
     private statusListeners: Set<(status: 'disconnected' | 'connecting' | 'connected' | 'error') => void> = new Set();
     private currentStatus: 'disconnected' | 'connecting' | 'connected' | 'error' = 'disconnected';
@@ -117,12 +117,29 @@ class ApiSocket {
     //
 
     onMessage(event: string, handler: (data: any) => void) {
-        this.messageHandlers.set(event, handler);
-        return () => this.messageHandlers.delete(event);
+        if (!this.messageHandlers.has(event)) {
+            this.messageHandlers.set(event, new Set());
+        }
+        this.messageHandlers.get(event)!.add(handler);
+        return () => {
+            const handlers = this.messageHandlers.get(event);
+            if (handlers) {
+                handlers.delete(handler);
+                if (handlers.size === 0) {
+                    this.messageHandlers.delete(event);
+                }
+            }
+        };
     }
 
     offMessage(event: string, handler: (data: any) => void) {
-        this.messageHandlers.delete(event);
+        const handlers = this.messageHandlers.get(event);
+        if (handlers) {
+            handlers.delete(handler);
+            if (handlers.size === 0) {
+                this.messageHandlers.delete(event);
+            }
+        }
     }
 
     /**
@@ -393,13 +410,13 @@ class ApiSocket {
             this.updateStatus('error', error);
         });
 
-        // Message handling
+        // Message handling - dispatch to all registered handlers for each event
         this.socket.onAny((event, data) => {
             // console.log(`📥 SyncSocket: Received event '${event}':`, JSON.stringify(data).substring(0, 200));
-            const handler = this.messageHandlers.get(event);
-            if (handler) {
-                // console.log(`📥 SyncSocket: Calling handler for '${event}'`);
-                handler(data);
+            const handlers = this.messageHandlers.get(event);
+            if (handlers) {
+                // console.log(`📥 SyncSocket: Calling ${handlers.size} handler(s) for '${event}'`);
+                handlers.forEach(handler => handler(data));
             } else {
                 // console.log(`📥 SyncSocket: No handler registered for '${event}'`);
             }
