@@ -3,7 +3,7 @@ import * as React from 'react';
 export function useAsyncCommand(command: () => Promise<void>) {
     const [state, setState] = React.useState(false);
     const stateRef = React.useRef(state);
-    const execute = async () => {
+    const execute = React.useCallback(async () => {
 
         // Guard
         if (stateRef.current) {
@@ -19,7 +19,7 @@ export function useAsyncCommand(command: () => Promise<void>) {
             stateRef.current = false;
             setState(false);
         }
-    };
+    }, [command]);
 
     return [state, execute] as const;
 }
