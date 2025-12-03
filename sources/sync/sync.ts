@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import { apiSocket } from '@/sync/apiSocket';
 import { AuthCredentials } from '@/auth/tokenStorage';
+import { AppError, ErrorCodes } from '@/utils/errors';
 import { Encryption } from '@/sync/encryption/encryption';
 import { decodeBase64, encodeBase64 } from '@/encryption/base64';
 import { storage } from './storage';
@@ -518,7 +519,7 @@ class Sync {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to fetch sessions: ${response.status}`);
+            throw new AppError(ErrorCodes.FETCH_FAILED, `Failed to fetch sessions: ${response.status}`, { canTryAgain: true });
         }
 
         const data = await response.json();
@@ -719,7 +720,7 @@ class Sync {
         draft?: boolean
     ): Promise<string> {
         if (!this.credentials) {
-            throw new Error('Not authenticated');
+            throw new AppError(ErrorCodes.NOT_AUTHENTICATED, 'Not authenticated');
         }
 
         try {
@@ -785,33 +786,33 @@ class Sync {
         draft?: boolean
     ): Promise<void> {
         if (!this.credentials) {
-            throw new Error('Not authenticated');
+            throw new AppError(ErrorCodes.NOT_AUTHENTICATED, 'Not authenticated');
         }
 
         try {
             // Get current artifact to get versions and encryption key
             const currentArtifact = storage.getState().artifacts[artifactId];
             if (!currentArtifact) {
-                throw new Error('Artifact not found');
+                throw new AppError(ErrorCodes.NOT_FOUND, 'Artifact not found');
             }
 
             // Get the data encryption key from memory or fetch it
             let dataEncryptionKey = this.artifactDataKeys.get(artifactId);
-            
+
             // Fetch full artifact if we don't have version info or encryption key
             let headerVersion = currentArtifact.headerVersion;
             let bodyVersion = currentArtifact.bodyVersion;
-            
+
             if (headerVersion === undefined || bodyVersion === undefined || !dataEncryptionKey) {
                 const fullArtifact = await fetchArtifact(this.credentials, artifactId);
                 headerVersion = fullArtifact.headerVersion;
                 bodyVersion = fullArtifact.bodyVersion;
-                
+
                 // Decrypt and store the data encryption key if we don't have it
                 if (!dataEncryptionKey) {
                     const decryptedKey = await this.encryption.decryptEncryptionKey(fullArtifact.dataEncryptionKey);
                     if (!decryptedKey) {
-                        throw new Error('Failed to decrypt encryption key');
+                        throw new AppError(ErrorCodes.DECRYPTION_FAILED, 'Failed to decrypt encryption key');
                     }
                     this.artifactDataKeys.set(artifactId, decryptedKey);
                     dataEncryptionKey = decryptedKey;
@@ -855,9 +856,9 @@ class Sync {
             if (!response.success) {
                 // Handle version mismatch
                 if (response.error === 'version-mismatch') {
-                    throw new Error('Artifact was modified by another client. Please refresh and try again.');
+                    throw new AppError(ErrorCodes.VERSION_CONFLICT, 'Artifact was modified by another client. Please refresh and try again.', { canTryAgain: true });
                 }
-                throw new Error('Failed to update artifact');
+                throw new AppError(ErrorCodes.API_ERROR, 'Failed to update artifact', { canTryAgain: true });
             }
 
             // Update local storage
@@ -1236,7 +1237,7 @@ class Sync {
                     }
 
                 } else {
-                    throw new Error(`Failed to sync settings: ${data.error}`);
+                    throw new AppError(ErrorCodes.SYNC_FAILED, `Failed to sync settings: ${data.error}`, { canTryAgain: true });
                 }
 
                 // Wait 1 second
@@ -1253,7 +1254,7 @@ class Sync {
             }
         });
         if (!response.ok) {
-            throw new Error(`Failed to fetch settings: ${response.status}`);
+            throw new AppError(ErrorCodes.FETCH_FAILED, `Failed to fetch settings: ${response.status}`, { canTryAgain: true });
         }
         const data = await response.json() as {
             settings: string | null,
@@ -1299,7 +1300,7 @@ class Sync {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to fetch profile: ${response.status}`);
+            throw new AppError(ErrorCodes.FETCH_FAILED, `Failed to fetch profile: ${response.status}`, { canTryAgain: true });
         }
 
         const data = await response.json();
@@ -2085,7 +2086,7 @@ async function syncInit(credentials: AuthCredentials, restore: boolean) {
     // Initialize sync engine
     const secretKey = decodeBase64(credentials.secret, 'base64url');
     if (secretKey.length !== 32) {
-        throw new Error(`Invalid secret key length: ${secretKey.length}, expected 32`);
+        throw new AppError(ErrorCodes.VALIDATION_FAILED, `Invalid secret key length: ${secretKey.length}, expected 32`);
     }
     const encryption = await Encryption.create(secretKey);
 

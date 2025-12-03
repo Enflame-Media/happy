@@ -3,6 +3,7 @@ import { encodeBase64, decodeBase64 } from "@/encryption/base64";
 import sodium from '@/encryption/libsodium.lib';
 import { decodeUTF8, encodeUTF8 } from "@/encryption/text";
 import { decryptAESGCMString, encryptAESGCMString } from "@/encryption/aes";
+import { AppError, ErrorCodes } from "@/utils/errors";
 
 //
 // IMPORTANT: Right now there is a bug in the AES implementation and it works only with a normal strings converted to Uint8Array. 
@@ -22,7 +23,7 @@ export class SecretBoxEncryption implements Encryptor, Decryptor {
 
     constructor(secretKey: Uint8Array) {
         if (secretKey.length !== 32) {
-            throw new Error(`Invalid SecretBox key length: expected 32 bytes, got ${secretKey.length} bytes`);
+            throw new AppError(ErrorCodes.VALIDATION_FAILED, `Invalid SecretBox key length: expected 32 bytes, got ${secretKey.length} bytes`);
         }
         this.secretKey = secretKey;
     }
@@ -52,7 +53,7 @@ export class BoxEncryption implements Encryptor, Decryptor {
 
     constructor(seed: Uint8Array) {
         if (seed.length !== 32) {
-            throw new Error(`Invalid BoxEncryption seed length: expected 32 bytes, got ${seed.length} bytes`);
+            throw new AppError(ErrorCodes.VALIDATION_FAILED, `Invalid BoxEncryption seed length: expected 32 bytes, got ${seed.length} bytes`);
         }
         // Use the seed to generate a proper keypair
         const keypair = sodium.crypto_box_seed_keypair(seed);
@@ -90,7 +91,7 @@ export class AES256Encryption implements Encryptor, Decryptor {
 
     constructor(secretKey: Uint8Array) {
         if (secretKey.length !== 32) {
-            throw new Error(`Invalid AES-256 key length: expected 32 bytes, got ${secretKey.length} bytes`);
+            throw new AppError(ErrorCodes.VALIDATION_FAILED, `Invalid AES-256 key length: expected 32 bytes, got ${secretKey.length} bytes`);
         }
         this.secretKey = secretKey;
         this.secretKeyB64 = encodeBase64(secretKey);

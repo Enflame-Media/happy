@@ -12,6 +12,7 @@ import { sync } from '@/sync/sync';
 import { deleteArtifact } from '@/sync/apiArtifacts';
 import { storage } from '@/sync/storage';
 import { MarkdownView } from '@/components/markdown/MarkdownView';
+import { AppError, ErrorCodes } from '@/utils/errors';
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -95,9 +96,9 @@ function ArtifactDetailScreen() {
                 
                 const credentials = sync.getCredentials();
                 if (!credentials) {
-                    throw new Error('Not authenticated');
+                    throw new AppError(ErrorCodes.NOT_AUTHENTICATED, 'Not authenticated');
                 }
-                
+
                 // Fetch full artifact with body
                 const fullArtifact = await sync.fetchArtifactWithBody(id);
                 if (!cancelled && fullArtifact) {
@@ -141,7 +142,7 @@ function ArtifactDetailScreen() {
             
             const credentials = sync.getCredentials();
             if (!credentials) {
-                throw new Error('Not authenticated');
+                throw new AppError(ErrorCodes.NOT_AUTHENTICATED, 'Not authenticated');
             }
 
             await deleteArtifact(credentials, id);

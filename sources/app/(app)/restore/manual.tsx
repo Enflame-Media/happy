@@ -14,6 +14,7 @@ import { Modal } from '@/modal';
 import { t } from '@/text';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { QRCode } from '@/components/qr/QRCode';
+import { AppError, ErrorCodes } from '@/utils/errors';
 
 const stylesheet = StyleSheet.create((theme) => ({
     scrollView: {
@@ -86,13 +87,13 @@ function Restore() {
             // Validate the secret key format
             const secretBytes = decodeBase64(normalizedKey, 'base64url');
             if (secretBytes.length !== 32) {
-                throw new Error('Invalid secret key length');
+                throw new AppError(ErrorCodes.INVALID_KEY, 'Invalid secret key length');
             }
 
             // Get token from secret
             const token = await authGetToken(secretBytes);
             if (!token) {
-                throw new Error('Failed to authenticate with provided key');
+                throw new AppError(ErrorCodes.AUTH_FAILED, 'Failed to authenticate with provided key');
             }
 
             // Login with new credentials

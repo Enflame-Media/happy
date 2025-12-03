@@ -1,21 +1,22 @@
-import Purchases, { 
+import Purchases, {
     CustomerInfo as NativeCustomerInfo,
     PurchasesOfferings,
     PurchasesStoreProduct,
     LOG_LEVEL
 } from 'react-native-purchases';
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
-import { 
-    RevenueCatInterface, 
-    CustomerInfo, 
-    Product, 
-    Offerings, 
+import {
+    RevenueCatInterface,
+    CustomerInfo,
+    Product,
+    Offerings,
     PurchaseResult,
     RevenueCatConfig,
     LogLevel,
     PaywallResult,
     PaywallOptions
 } from './types';
+import { AppError, ErrorCodes } from '@/utils/errors';
 
 // Map native log levels to our common ones
 const logLevelMap = {
@@ -54,7 +55,7 @@ class RevenueCatNative implements RevenueCatInterface {
         // For native, we need to get the actual native product object
         const nativeProducts = await Purchases.getProducts([product.identifier]);
         if (nativeProducts.length === 0) {
-            throw new Error(`Product ${product.identifier} not found`);
+            throw new AppError(ErrorCodes.PRODUCT_NOT_FOUND, `Product ${product.identifier} not found`);
         }
         
         const result = await Purchases.purchaseStoreProduct(nativeProducts[0]);

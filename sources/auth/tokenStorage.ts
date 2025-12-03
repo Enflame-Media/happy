@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { AppError, ErrorCodes } from '@/utils/errors';
 
 const AUTH_KEY = 'auth_credentials';
 const ENCRYPTION_KEY = 'auth_enc_key';
@@ -57,7 +58,7 @@ async function getOrCreateEncryptionKey(): Promise<CryptoKey> {
 
 async function encryptForWeb(data: string): Promise<string> {
     if (!isSecureContext()) {
-        throw new Error('Web Crypto API requires a secure context (HTTPS)');
+        throw new AppError(ErrorCodes.NOT_CONFIGURED, 'Web Crypto API requires a secure context (HTTPS)');
     }
     const key = await getOrCreateEncryptionKey();
     const iv = crypto.getRandomValues(new Uint8Array(AES_GCM_IV_LENGTH));
@@ -105,7 +106,7 @@ export const TokenStorage = {
                 const decrypted = await decryptForWeb(stored);
                 const parsed: unknown = JSON.parse(decrypted);
                 if (!isValidCredentials(parsed)) {
-                    throw new Error('Invalid credentials format');
+                    throw new AppError(ErrorCodes.VALIDATION_FAILED, 'Invalid credentials format');
                 }
                 return parsed;
             } catch {
@@ -113,7 +114,7 @@ export const TokenStorage = {
                 try {
                     const parsed: unknown = JSON.parse(stored);
                     if (!isValidCredentials(parsed)) {
-                        throw new Error('Invalid credentials format');
+                        throw new AppError(ErrorCodes.VALIDATION_FAILED, 'Invalid credentials format');
                     }
                     // Re-encrypt and save in new format
                     const encrypted = await encryptForWeb(JSON.stringify(parsed));

@@ -4,13 +4,14 @@ import { Modal } from './ModalManager';
 import { WebAlertModal } from './components/WebAlertModal';
 import { WebPromptModal } from './components/WebPromptModal';
 import { CustomModal } from './components/CustomModal';
+import { AppError, ErrorCodes } from '@/utils/errors';
 
 const ModalContext = createContext<ModalContextValue | undefined>(undefined);
 
 export function useModal() {
     const context = useContext(ModalContext);
     if (!context) {
-        throw new Error('useModal must be used within a ModalProvider');
+        throw new AppError(ErrorCodes.INTERNAL_ERROR, 'useModal must be used within a ModalProvider');
     }
     return context;
 }

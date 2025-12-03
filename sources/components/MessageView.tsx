@@ -10,6 +10,7 @@ import { ToolView } from "./tools/ToolView";
 import { AgentEvent } from "@/sync/typesRaw";
 import { sync } from '@/sync/sync';
 import { Option } from './markdown/MarkdownView';
+import { AppError, ErrorCodes } from '@/utils/errors';
 
 export const MessageView = React.memo((props: {
   message: Message;
@@ -60,7 +61,7 @@ function RenderBlock(props: {
     default:
       // Exhaustive check - TypeScript will error if we miss a case
       const _exhaustive: never = props.message;
-      throw new Error(`Unknown message kind: ${_exhaustive}`);
+      throw new AppError(ErrorCodes.INTERNAL_ERROR, `Unknown message kind: ${_exhaustive}`);
   }
 }
 

@@ -21,6 +21,7 @@ import { createWorktree } from '@/utils/createWorktree';
 import { getTempData, type NewSessionData } from '@/utils/tempDataStore';
 import { linkTaskToSession } from '@/-zen/model/taskSessionLink';
 import { PermissionMode, ModelMode } from '@/components/PermissionModeSelector';
+import { AppError, ErrorCodes } from '@/utils/errors';
 
 
 // Helper function to get the most recent path for a machine from settings or sessions
@@ -402,7 +403,7 @@ function NewSessionScreen() {
                     },
                 });
             } else {
-                throw new Error('Session spawning failed - no session ID returned.');
+                throw new AppError(ErrorCodes.INTERNAL_ERROR, 'Session spawning failed - no session ID returned.');
             }
         } catch (error) {
             console.error('Failed to start session', error);

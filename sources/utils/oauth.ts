@@ -1,5 +1,6 @@
 import { getRandomBytes } from 'expo-crypto';
 import * as Crypto from 'expo-crypto';
+import { AppError, ErrorCodes } from '@/utils/errors';
 
 // OAuth Configuration for Claude.ai
 export const CLAUDE_OAUTH_CONFIG = {
@@ -104,7 +105,7 @@ export async function exchangeCodeForTokens(
 
     if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
-        throw new Error(`Token exchange failed: ${tokenResponse.statusText} - ${errorText}`);
+        throw new AppError(ErrorCodes.AUTH_FAILED, `Token exchange failed: ${tokenResponse.statusText} - ${errorText}`, { canTryAgain: true });
     }
 
     const tokenData = await tokenResponse.json() as any;

@@ -1,5 +1,6 @@
 import { getRandomBytes } from 'expo-crypto';
 import sodium from '@/encryption/libsodium.lib';
+import { AppError, ErrorCodes } from '@/utils/errors';
 
 /**
  * Module-level counter for hybrid nonce generation.
@@ -25,7 +26,7 @@ function generateHybridNonce(totalLength: number): Uint8Array {
     const randomLength = totalLength - counterBytes;
 
     if (randomLength < 0) {
-        throw new Error(`Nonce length ${totalLength} is too short for hybrid nonce (minimum 8 bytes)`);
+        throw new AppError(ErrorCodes.VALIDATION_FAILED, `Nonce length ${totalLength} is too short for hybrid nonce (minimum 8 bytes)`);
     }
 
     // CRITICAL: Capture and increment counter atomically (in JS single-threaded sense)
@@ -35,7 +36,7 @@ function generateHybridNonce(totalLength: number): Uint8Array {
     if (nonceCounter >= MAX_UINT64) {
         // This should be practically impossible (2^64 encryptions)
         // but handle it securely: throw error instead of wrapping
-        throw new Error("CRITICAL: Nonce counter limit reached after 2^64 operations. Application must be restarted immediately to maintain cryptographic security.");
+        throw new AppError(ErrorCodes.ENCRYPTION_ERROR, "CRITICAL: Nonce counter limit reached after 2^64 operations. Application must be restarted immediately to maintain cryptographic security.");
     }
     const currentCounter = nonceCounter;
     nonceCounter = nonceCounter + 1n;  // Increment immediately after capture

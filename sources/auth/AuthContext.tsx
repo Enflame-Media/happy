@@ -5,6 +5,7 @@ import * as Updates from 'expo-updates';
 import { clearPersistence } from '@/sync/persistence';
 import { Platform } from 'react-native';
 import { trackLogout } from '@/track';
+import { AppError, ErrorCodes } from '@/utils/errors';
 
 interface AuthContextType {
     isAuthenticated: boolean;
@@ -32,7 +33,7 @@ export function AuthProvider({ children, initialCredentials }: { children: React
             setCredentials(newCredentials);
             setIsAuthenticated(true);
         } else {
-            throw new Error('Failed to save credentials');
+            throw new AppError(ErrorCodes.AUTH_FAILED, 'Failed to save credentials');
         }
     };
 
@@ -74,7 +75,7 @@ export function AuthProvider({ children, initialCredentials }: { children: React
 export function useAuth() {
     const context = useContext(AuthContext);
     if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
+        throw new AppError(ErrorCodes.INTERNAL_ERROR, 'useAuth must be used within an AuthProvider');
     }
     return context;
 }

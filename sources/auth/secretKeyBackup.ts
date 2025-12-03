@@ -1,4 +1,5 @@
 import { encodeBase64, decodeBase64 } from '@/encryption/base64';
+import { AppError, ErrorCodes } from '@/utils/errors';
 
 /**
  * Converts a 32-byte secret key to a user-readable format similar to 1Password
@@ -48,7 +49,7 @@ function base32ToBytes(base32: string): Uint8Array {
     
     // Check if we have any content left
     if (cleaned.length === 0) {
-        throw new Error('No valid characters found');
+        throw new AppError(ErrorCodes.VALIDATION_FAILED, 'No valid characters found');
     }
     
     const bytes: number[] = [];
@@ -58,7 +59,7 @@ function base32ToBytes(base32: string): Uint8Array {
     for (const char of cleaned) {
         const value = BASE32_ALPHABET.indexOf(char);
         if (value === -1) {
-            throw new Error('Invalid base32 character');
+            throw new AppError(ErrorCodes.VALIDATION_FAILED, 'Invalid base32 character');
         }
 
         buffer = (buffer << 5) | value;
@@ -97,7 +98,7 @@ export function formatSecretKeyForBackup(secretKey: string): string {
         // That's 11 groups of 5 chars (55 chars total)
         return groups.join('-');
     } catch {
-        throw new Error('Invalid secret key format');
+        throw new AppError(ErrorCodes.INVALID_KEY, 'Invalid secret key format');
     }
 }
 
@@ -113,20 +114,17 @@ export function parseBackupSecretKey(formattedKey: string): string {
 
         // Ensure we have exactly 32 bytes
         if (bytes.length !== 32) {
-            throw new Error(`Invalid key length: expected 32 bytes, got ${bytes.length}`);
+            throw new AppError(ErrorCodes.INVALID_KEY, `Invalid key length: expected 32 bytes, got ${bytes.length}`);
         }
 
         // Encode to base64url
         return encodeBase64(bytes, 'base64url');
     } catch (error) {
-        // Re-throw specific error messages
-        if (error instanceof Error) {
-            if (error.message.includes('Invalid key length') || 
-                error.message.includes('No valid characters found')) {
-                throw error;
-            }
+        // Re-throw AppErrors (already properly formatted)
+        if (AppError.isAppError(error)) {
+            throw error;
         }
-        throw new Error('Invalid secret key format');
+        throw new AppError(ErrorCodes.INVALID_KEY, 'Invalid secret key format');
     }
 }
 
@@ -169,7 +167,7 @@ export function normalizeSecretKey(key: string): string {
     try {
         const bytes = decodeBase64(trimmed, 'base64url');
         if (bytes.length !== 32) {
-            throw new Error('Invalid secret key');
+            throw new AppError(ErrorCodes.INVALID_KEY, 'Invalid secret key');
         }
         return trimmed;
     } catch {
