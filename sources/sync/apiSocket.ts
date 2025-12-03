@@ -1,7 +1,7 @@
-import { io, Socket } from 'socket.io-client';
 import { TokenStorage } from '@/auth/tokenStorage';
 import { Encryption } from './encryption/encryption';
 import { AppError, ErrorCodes } from '@/utils/errors';
+import * as Crypto from 'expo-crypto';
 
 //
 // Types
@@ -20,22 +20,71 @@ export interface SyncSocketState {
 
 export type SyncSocketListener = (state: SyncSocketState) => void;
 
+/**
+ * Message format for native WebSocket protocol.
+ * This matches the format used by happy-cli's HappyWebSocket and the Workers backend.
+ */
+interface HappyMessage {
+    event: string;
+    data?: unknown;
+    ackId?: string;
+    ack?: unknown;
+}
+
+/**
+ * Pending acknowledgement tracking for request-response pattern.
+ */
+interface PendingAck<T = unknown> {
+    resolve: (value: T) => void;
+    reject: (error: Error) => void;
+    timer: ReturnType<typeof setTimeout>;
+}
+
+/**
+ * WebSocket configuration for reconnection behavior.
+ */
+interface WebSocketConfig {
+    reconnectionDelay: number;
+    reconnectionDelayMax: number;
+    randomizationFactor: number;
+    ackTimeout: number;
+}
+
+const DEFAULT_CONFIG: WebSocketConfig = {
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    randomizationFactor: 0.5,
+    ackTimeout: 30000,
+};
+
 //
 // Main Class
 //
 
 class ApiSocket {
 
-    // State
-    private socket: Socket | null = null;
+    // WebSocket state
+    private ws: WebSocket | null = null;
     private config: SyncSocketConfig | null = null;
     private encryption: Encryption | null = null;
-    private messageHandlers: Map<string, Set<(data: any) => void>> = new Map();
+    private wsConfig: WebSocketConfig = DEFAULT_CONFIG;
+
+    // Reconnection state
+    private reconnectAttempts = 0;
+    private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    private isManualClose = false;
+    private wasConnectedBefore = false;
+
+    // Event handlers
+    private messageHandlers: Map<string, Set<(data: unknown) => void>> = new Map();
     private reconnectedListeners: Set<() => void> = new Set();
     private statusListeners: Set<(status: 'disconnected' | 'connecting' | 'connected' | 'error') => void> = new Set();
     private currentStatus: 'disconnected' | 'connecting' | 'connected' | 'error' = 'disconnected';
     private lastError: Error | null = null;
     private errorListeners: Set<(error: Error | null) => void> = new Set();
+
+    // Acknowledgement tracking for request-response pattern
+    private pendingAcks: Map<string, PendingAck> = new Map();
 
     //
     // Initialization
@@ -52,34 +101,89 @@ class ApiSocket {
     //
 
     connect() {
-        if (!this.config || this.socket) {
+        if (!this.config || this.ws) {
             return;
         }
 
+        this.isManualClose = false;
         this.updateStatus('connecting');
+        this.doConnect();
+    }
 
-        this.socket = io(this.config.endpoint, {
-            path: '/v1/updates',
-            auth: {
-                token: this.config.token,
-                clientType: 'user-scoped' as const
-            },
-            transports: ['websocket'],
-            reconnection: true,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
-            reconnectionAttempts: Infinity
-        });
+    /**
+     * Internal connection logic - creates WebSocket and sets up handlers.
+     */
+    private doConnect(): void {
+        if (!this.config) return;
 
+        // Build WebSocket URL with auth params
+        const wsUrl = new URL('/v1/updates', this.config.endpoint);
+        wsUrl.protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+
+        // Add auth as query parameters (like happy-cli does)
+        wsUrl.searchParams.set('token', this.config.token);
+        wsUrl.searchParams.set('clientType', 'user-scoped');
+
+        this.ws = new WebSocket(wsUrl.toString());
         this.setupEventHandlers();
     }
 
     disconnect() {
-        if (this.socket) {
-            this.socket.disconnect();
-            this.socket = null;
+        this.isManualClose = true;
+
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
         }
+
+        // Reject all pending acknowledgements
+        this.rejectAllPendingAcks(new Error('Connection closed'));
+
+        if (this.ws) {
+            this.ws.close();
+            this.ws = null;
+        }
+
         this.updateStatus('disconnected');
+    }
+
+    /**
+     * Schedule a reconnection attempt with exponential backoff.
+     */
+    private scheduleReconnect(): void {
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+        }
+
+        if (this.isManualClose) {
+            return;
+        }
+
+        // Calculate delay with exponential backoff and jitter
+        const baseDelay = Math.min(
+            this.wsConfig.reconnectionDelay * Math.pow(2, this.reconnectAttempts),
+            this.wsConfig.reconnectionDelayMax
+        );
+        const jitter = baseDelay * this.wsConfig.randomizationFactor * Math.random();
+        const delay = baseDelay + jitter;
+
+        this.reconnectAttempts++;
+
+        this.reconnectTimeout = setTimeout(() => {
+            this.reconnectTimeout = null;
+            this.doConnect();
+        }, delay);
+    }
+
+    /**
+     * Reject all pending acknowledgements with an error.
+     */
+    private rejectAllPendingAcks(error: Error): void {
+        for (const [_ackId, pending] of this.pendingAcks) {
+            clearTimeout(pending.timer);
+            pending.reject(error);
+        }
+        this.pendingAcks.clear();
     }
 
     //
@@ -117,7 +221,7 @@ class ApiSocket {
     // Message Handling
     //
 
-    onMessage(event: string, handler: (data: any) => void) {
+    onMessage(event: string, handler: (data: unknown) => void) {
         if (!this.messageHandlers.has(event)) {
             this.messageHandlers.set(event, new Set());
         }
@@ -133,7 +237,7 @@ class ApiSocket {
         };
     }
 
-    offMessage(event: string, handler: (data: any) => void) {
+    offMessage(event: string, handler: (data: unknown) => void) {
         const handlers = this.messageHandlers.get(event);
         if (handlers) {
             handlers.delete(handler);
@@ -166,18 +270,15 @@ class ApiSocket {
             throw new AppError(ErrorCodes.RPC_CANCELLED, 'RPC call was cancelled');
         }
 
-        if (!this.socket) {
+        if (!this.ws || this.currentStatus !== 'connected') {
             throw new AppError(ErrorCodes.SOCKET_NOT_CONNECTED, 'Socket not connected');
         }
-
-        // Capture socket reference to avoid stale closure issues
-        const socket = this.socket;
 
         // Set up cancellation handling
         let abortHandler: (() => void) | undefined;
         let isSettled = false;
 
-        const result = await new Promise<any>((resolve, reject) => {
+        const result = await new Promise<{ ok?: boolean; result?: string; cancelled?: boolean; requestId?: string }>((resolve, reject) => {
             if (options?.signal) {
                 abortHandler = () => {
                     if (!isSettled) {
@@ -188,10 +289,10 @@ class ApiSocket {
                 options.signal.addEventListener('abort', abortHandler);
             }
 
-            // Make the RPC call (not using async/await in executor to avoid anti-pattern)
+            // Make the RPC call
             const encryptPromise = sessionEncryption.encryptRaw(params);
             encryptPromise.then(encryptedParams => {
-                return socket.emitWithAck('rpc-call', {
+                return this.emitWithAck<{ ok?: boolean; result?: string; cancelled?: boolean; requestId?: string }>('rpc-call', {
                     method: `${sessionId}:${method}`,
                     params: encryptedParams
                 });
@@ -200,7 +301,7 @@ class ApiSocket {
                     isSettled = true;
                     // Send cancellation to server if we got a requestId and abortion happened
                     if (options?.signal?.aborted && rpcResult.requestId) {
-                        socket.emit('rpc-cancel', { requestId: rpcResult.requestId });
+                        this.send('rpc-cancel', { requestId: rpcResult.requestId });
                     }
                     resolve(rpcResult);
                 }
@@ -217,7 +318,7 @@ class ApiSocket {
         });
 
         if (result.ok) {
-            return await sessionEncryption.decryptRaw(result.result) as R;
+            return await sessionEncryption.decryptRaw(result.result!) as R;
         }
         if (result.cancelled) {
             throw new AppError(ErrorCodes.RPC_CANCELLED, 'RPC call was cancelled');
@@ -248,18 +349,15 @@ class ApiSocket {
             throw new AppError(ErrorCodes.RPC_CANCELLED, 'RPC call was cancelled');
         }
 
-        if (!this.socket) {
+        if (!this.ws || this.currentStatus !== 'connected') {
             throw new AppError(ErrorCodes.SOCKET_NOT_CONNECTED, 'Socket not connected');
         }
-
-        // Capture socket reference to avoid stale closure issues
-        const socket = this.socket;
 
         // Set up cancellation handling
         let abortHandler: (() => void) | undefined;
         let isSettled = false;
 
-        const result = await new Promise<any>((resolve, reject) => {
+        const result = await new Promise<{ ok?: boolean; result?: string; cancelled?: boolean; requestId?: string }>((resolve, reject) => {
             if (options?.signal) {
                 abortHandler = () => {
                     if (!isSettled) {
@@ -270,10 +368,10 @@ class ApiSocket {
                 options.signal.addEventListener('abort', abortHandler);
             }
 
-            // Make the RPC call (not using async/await in executor to avoid anti-pattern)
+            // Make the RPC call
             const encryptPromise = machineEncryption.encryptRaw(params);
             encryptPromise.then(encryptedParams => {
-                return socket.emitWithAck('rpc-call', {
+                return this.emitWithAck<{ ok?: boolean; result?: string; cancelled?: boolean; requestId?: string }>('rpc-call', {
                     method: `${machineId}:${method}`,
                     params: encryptedParams
                 });
@@ -282,7 +380,7 @@ class ApiSocket {
                     isSettled = true;
                     // Send cancellation to server if we got a requestId and abortion happened
                     if (options?.signal?.aborted && rpcResult.requestId) {
-                        socket.emit('rpc-cancel', { requestId: rpcResult.requestId });
+                        this.send('rpc-cancel', { requestId: rpcResult.requestId });
                     }
                     resolve(rpcResult);
                 }
@@ -299,7 +397,7 @@ class ApiSocket {
         });
 
         if (result.ok) {
-            return await machineEncryption.decryptRaw(result.result) as R;
+            return await machineEncryption.decryptRaw(result.result!) as R;
         }
         if (result.cancelled) {
             throw new AppError(ErrorCodes.RPC_CANCELLED, 'RPC call was cancelled');
@@ -307,16 +405,47 @@ class ApiSocket {
         throw new AppError(ErrorCodes.RPC_FAILED, 'RPC call failed');
     }
 
-    send(event: string, data: any) {
-        this.socket!.emit(event, data);
+    /**
+     * Send an event without expecting acknowledgement.
+     */
+    send(event: string, data: unknown) {
+        if (!this.ws || this.currentStatus !== 'connected') {
+            return false;
+        }
+        this.sendRaw({ event, data });
         return true;
     }
 
-    async emitWithAck<T = any>(event: string, data: any): Promise<T> {
-        if (!this.socket) {
+    /**
+     * Send raw message to WebSocket.
+     */
+    private sendRaw(message: HappyMessage): void {
+        if (this.ws && this.currentStatus === 'connected') {
+            this.ws.send(JSON.stringify(message));
+        }
+    }
+
+    /**
+     * Emit an event and wait for acknowledgement.
+     * This implements the request-response pattern using ackId.
+     */
+    async emitWithAck<T = unknown>(event: string, data: unknown): Promise<T> {
+        if (!this.ws || this.currentStatus !== 'connected') {
             throw new AppError(ErrorCodes.SOCKET_NOT_CONNECTED, 'Socket not connected');
         }
-        return await this.socket.emitWithAck(event, data);
+
+        const ackId = Crypto.randomUUID();
+
+        return new Promise<T>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                this.pendingAcks.delete(ackId);
+                reject(new AppError(ErrorCodes.RPC_FAILED, `Request timed out: ${event}`));
+            }, this.wsConfig.ackTimeout);
+
+            this.pendingAcks.set(ackId, { resolve: resolve as (value: unknown) => void, reject, timer });
+
+            this.sendRaw({ event, data, ackId });
+        });
     }
 
     //
@@ -353,7 +482,7 @@ class ApiSocket {
         if (this.config && this.config.token !== newToken) {
             this.config.token = newToken;
 
-            if (this.socket) {
+            if (this.ws) {
                 this.disconnect();
                 this.connect();
             }
@@ -382,46 +511,81 @@ class ApiSocket {
         }
     }
 
-    private setupEventHandlers() {
-        if (!this.socket) return;
+    /**
+     * Handle incoming WebSocket messages.
+     * Parses JSON and dispatches to event handlers or resolves pending acks.
+     */
+    private handleMessage(data: string): void {
+        try {
+            const message = JSON.parse(data) as HappyMessage;
 
-        // Connection events
-        this.socket.on('connect', () => {
-            // console.log('🔌 SyncSocket: Connected, recovered: ' + this.socket?.recovered);
-            // console.log('🔌 SyncSocket: Socket ID:', this.socket?.id);
+            // Handle acknowledgement responses (for emitWithAck)
+            if (message.ackId && message.ack !== undefined) {
+                const pending = this.pendingAcks.get(message.ackId);
+                if (pending) {
+                    clearTimeout(pending.timer);
+                    this.pendingAcks.delete(message.ackId);
+                    pending.resolve(message.ack);
+                }
+                return;
+            }
+
+            // Handle regular events - dispatch to registered handlers
+            const handlers = this.messageHandlers.get(message.event);
+            if (handlers) {
+                handlers.forEach(handler => handler(message.data));
+            }
+        } catch {
+            // Ignore malformed messages
+        }
+    }
+
+    private setupEventHandlers() {
+        if (!this.ws) return;
+
+        // Connection opened
+        this.ws.onopen = () => {
+            this.reconnectAttempts = 0;
             this.updateStatus('connected');
-            if (!this.socket?.recovered) {
+
+            // Notify reconnection listeners if this was a reconnection
+            if (this.wasConnectedBefore) {
                 this.reconnectedListeners.forEach(listener => listener());
             }
-        });
+            this.wasConnectedBefore = true;
+        };
 
-        this.socket.on('disconnect', (_reason) => {
-            // console.log('🔌 SyncSocket: Disconnected', _reason);
-            this.updateStatus('disconnected');
-        });
+        // Connection closed
+        this.ws.onclose = (_event) => {
+            const wasConnected = this.currentStatus === 'connected';
+            this.ws = null;
 
-        // Error events
-        this.socket.on('connect_error', (error) => {
-            // console.error('🔌 SyncSocket: Connection error', error);
-            this.updateStatus('error', error);
-        });
+            // Reject any pending acks
+            this.rejectAllPendingAcks(new Error('Connection closed'));
 
-        this.socket.on('error', (error) => {
-            // console.error('🔌 SyncSocket: Error', error);
-            this.updateStatus('error', error);
-        });
-
-        // Message handling - dispatch to all registered handlers for each event
-        this.socket.onAny((event, data) => {
-            // console.log(`📥 SyncSocket: Received event '${event}':`, JSON.stringify(data).substring(0, 200));
-            const handlers = this.messageHandlers.get(event);
-            if (handlers) {
-                // console.log(`📥 SyncSocket: Calling ${handlers.size} handler(s) for '${event}'`);
-                handlers.forEach(handler => handler(data));
-            } else {
-                // console.log(`📥 SyncSocket: No handler registered for '${event}'`);
+            if (wasConnected) {
+                this.updateStatus('disconnected');
             }
-        });
+
+            // Attempt reconnection if not manually closed
+            if (!this.isManualClose) {
+                this.scheduleReconnect();
+            }
+        };
+
+        // Connection error
+        this.ws.onerror = (_event) => {
+            // Error event doesn't provide useful info in browser/RN
+            // The close event will follow and trigger reconnection
+            this.updateStatus('error', new Error('WebSocket error'));
+        };
+
+        // Message received
+        this.ws.onmessage = (event) => {
+            if (typeof event.data === 'string') {
+                this.handleMessage(event.data);
+            }
+        };
     }
 }
 
