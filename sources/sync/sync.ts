@@ -2033,8 +2033,24 @@ class Sync {
     }
 }
 
+// Declare global for hot reload cleanup in development
+declare global {
+    // eslint-disable-next-line no-var
+    var __happySyncInstance: Sync | undefined;
+}
+
+// Clean up previous instance if exists (hot reload scenario)
+if (__DEV__ && global.__happySyncInstance) {
+    global.__happySyncInstance.destroy();
+}
+
 // Global singleton instance
 export const sync = new Sync();
+
+// Store reference for hot reload cleanup
+if (__DEV__) {
+    global.__happySyncInstance = sync;
+}
 
 //
 // Init sequence
