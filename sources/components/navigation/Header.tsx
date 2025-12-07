@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { View, Text, Platform, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// Use expo-router's bundled types to avoid version conflicts
-import type { NativeStackHeaderProps } from 'expo-router/node_modules/@react-navigation/native-stack';
+// Import directly from @react-navigation/native-stack (project dependency)
+import type { NativeStackHeaderProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { layout } from '../layout';
 import { useHeaderHeight, useIsTablet } from '@/utils/responsive';
