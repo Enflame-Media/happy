@@ -294,7 +294,14 @@ export const ru: TranslationStructure = {
         failedToConnectToServer: 'Не удалось подключиться к серверу',
         currentlyUsingCustomServer: 'Сейчас используется пользовательский сервер',
         customServerUrlLabel: 'URL пользовательского сервера',
-        advancedFeatureFooter: 'Это расширенная функция. Изменяйте сервер только если знаете, что делаете. Вам нужно будет выйти и войти снова после изменения серверов.'
+        advancedFeatureFooter: 'Это расширенная функция. Изменяйте сервер только если знаете, что делаете. Вам нужно будет выйти и войти снова после изменения серверов.',
+        // JSON validation error messages
+        invalidJsonResponse: 'Ответ сервера не является корректным JSON. Убедитесь, что URL указывает на API Happy Server, а не на веб-страницу.',
+        missingRequiredFields: ({ fields }: { fields: string }) => `В ответе сервера отсутствуют обязательные поля: ${fields}`,
+        incompatibleVersion: ({ serverVersion, requiredVersion }: { serverVersion: string; requiredVersion: string }) =>
+            `Версия сервера ${serverVersion} несовместима. Минимальная требуемая версия: ${requiredVersion}.`,
+        httpError: ({ status }: { status: number }) => `Сервер вернул HTTP ошибку ${status}`,
+        emptyResponse: 'Сервер вернул пустой ответ',
     },
 
     sessionInfo: {
@@ -413,10 +420,9 @@ export const ru: TranslationStructure = {
         },
         model: {
             title: 'МОДЕЛЬ',
-            default: 'Использовать настройки CLI',
-            adaptiveUsage: 'Opus до 50% использования, затем Sonnet',
-            sonnet: 'Sonnet',
-            opus: 'Opus',
+            opus: 'Opus 4.5',
+            sonnet: 'Sonnet 4.5',
+            haiku: 'Haiku 4.5',
         },
         codexPermissionMode: {
             title: 'РЕЖИМ РАЗРЕШЕНИЙ CODEX',

@@ -319,7 +319,14 @@ export const es: TranslationStructure = {
         failedToConnectToServer: 'Falló al conectar con el servidor',
         currentlyUsingCustomServer: 'Actualmente usando servidor personalizado',
         customServerUrlLabel: 'URL del servidor personalizado',
-        advancedFeatureFooter: 'Esta es una característica avanzada. Solo cambia el servidor si sabes lo que haces. Necesitarás cerrar sesión e iniciarla nuevamente después de cambiar servidores.'
+        advancedFeatureFooter: 'Esta es una característica avanzada. Solo cambia el servidor si sabes lo que haces. Necesitarás cerrar sesión e iniciarla nuevamente después de cambiar servidores.',
+        // JSON validation error messages
+        invalidJsonResponse: 'La respuesta del servidor no es JSON válido. Asegúrate de que la URL apunte a una API de Happy Server, no a una página web.',
+        missingRequiredFields: ({ fields }: { fields: string }) => `La respuesta del servidor carece de campos requeridos: ${fields}`,
+        incompatibleVersion: ({ serverVersion, requiredVersion }: { serverVersion: string; requiredVersion: string }) =>
+            `La versión del servidor ${serverVersion} no es compatible. La versión mínima requerida es ${requiredVersion}.`,
+        httpError: ({ status }: { status: number }) => `El servidor devolvió error HTTP ${status}`,
+        emptyResponse: 'El servidor devolvió una respuesta vacía',
     },
 
     sessionInfo: {
@@ -403,10 +410,9 @@ export const es: TranslationStructure = {
         },
         model: {
             title: 'MODELO',
-            default: 'Usar configuración del CLI',
-            adaptiveUsage: 'Opus hasta 50% de uso, luego Sonnet',
-            sonnet: 'Sonnet',
-            opus: 'Opus',
+            opus: 'Opus 4.5',
+            sonnet: 'Sonnet 4.5',
+            haiku: 'Haiku 4.5',
         },
         codexPermissionMode: {
             title: 'MODO DE PERMISOS CODEX',

@@ -321,7 +321,14 @@ export const zhHans: TranslationStructure = {
         failedToConnectToServer: '连接服务器失败',
         currentlyUsingCustomServer: '当前使用自定义服务器',
         customServerUrlLabel: '自定义服务器 URL',
-        advancedFeatureFooter: "这是一个高级功能。只有在您知道自己在做什么时才更改服务器。更改服务器后您需要重新登录。"
+        advancedFeatureFooter: "这是一个高级功能。只有在您知道自己在做什么时才更改服务器。更改服务器后您需要重新登录。",
+        // JSON validation error messages
+        invalidJsonResponse: '服务器响应不是有效的 JSON。请确保 URL 指向 Happy Server API，而不是网页。',
+        missingRequiredFields: ({ fields }: { fields: string }) => `服务器响应缺少必填字段：${fields}`,
+        incompatibleVersion: ({ serverVersion, requiredVersion }: { serverVersion: string; requiredVersion: string }) =>
+            `服务器版本 ${serverVersion} 不兼容。最低要求版本为 ${requiredVersion}。`,
+        httpError: ({ status }: { status: number }) => `服务器返回 HTTP 错误 ${status}`,
+        emptyResponse: '服务器返回了空响应',
     },
 
     sessionInfo: {
@@ -405,10 +412,9 @@ export const zhHans: TranslationStructure = {
         },
         model: {
             title: '模型',
-            default: '使用 CLI 设置',
-            adaptiveUsage: 'Opus 最多使用 50%，然后是 Sonnet',
-            sonnet: 'Sonnet',
-            opus: 'Opus',
+            opus: 'Opus 4.5',
+            sonnet: 'Sonnet 4.5',
+            haiku: 'Haiku 4.5',
         },
         codexPermissionMode: {
             title: 'CODEX 权限模式',

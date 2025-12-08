@@ -319,7 +319,14 @@ export const en = {
         failedToConnectToServer: 'Failed to connect to server',
         currentlyUsingCustomServer: 'Currently using custom server',
         customServerUrlLabel: 'Custom Server URL',
-        advancedFeatureFooter: "This is an advanced feature. Only change the server if you know what you're doing. You will need to log out and log in again after changing servers."
+        advancedFeatureFooter: "This is an advanced feature. Only change the server if you know what you're doing. You will need to log out and log in again after changing servers.",
+        // JSON validation error messages
+        invalidJsonResponse: 'Server response is not valid JSON. Make sure the URL points to a Happy Server API, not a web page.',
+        missingRequiredFields: ({ fields }: { fields: string }) => `Server response is missing required fields: ${fields}`,
+        incompatibleVersion: ({ serverVersion, requiredVersion }: { serverVersion: string; requiredVersion: string }) =>
+            `Server version ${serverVersion} is not compatible. Minimum required version is ${requiredVersion}.`,
+        httpError: ({ status }: { status: number }) => `Server returned HTTP error ${status}`,
+        emptyResponse: 'Server returned an empty response',
     },
 
     sessionInfo: {
@@ -403,10 +410,9 @@ export const en = {
         },
         model: {
             title: 'MODEL',
-            default: 'Use CLI settings',
-            adaptiveUsage: 'Opus up to 50% usage, then Sonnet',
-            sonnet: 'Sonnet',
-            opus: 'Opus',
+            opus: 'Opus 4.5',
+            sonnet: 'Sonnet 4.5',
+            haiku: 'Haiku 4.5',
         },
         codexPermissionMode: {
             title: 'CODEX PERMISSION MODE',

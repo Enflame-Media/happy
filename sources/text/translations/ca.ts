@@ -319,7 +319,14 @@ export const ca: TranslationStructure = {
         failedToConnectToServer: 'Ha fallat la connexió amb el servidor',
         currentlyUsingCustomServer: 'Actualment utilitzant un servidor personalitzat',
         customServerUrlLabel: 'URL del servidor personalitzat',
-        advancedFeatureFooter: 'Aquesta és una funció avançada. Només canvia el servidor si saps el que fas. Hauràs de tancar la sessió i tornar-la a iniciar després de canviar els servidors.'
+        advancedFeatureFooter: 'Aquesta és una funció avançada. Només canvia el servidor si saps el que fas. Hauràs de tancar la sessió i tornar-la a iniciar després de canviar els servidors.',
+        // JSON validation error messages
+        invalidJsonResponse: 'La resposta del servidor no és un JSON vàlid. Assegureu-vos que la URL apunti a una API de Happy Server, no a una pàgina web.',
+        missingRequiredFields: ({ fields }: { fields: string }) => `La resposta del servidor no conté els camps obligatoris: ${fields}`,
+        incompatibleVersion: ({ serverVersion, requiredVersion }: { serverVersion: string; requiredVersion: string }) =>
+            `La versió del servidor ${serverVersion} no és compatible. La versió mínima requerida és ${requiredVersion}.`,
+        httpError: ({ status }: { status: number }) => `El servidor ha retornat l'error HTTP ${status}`,
+        emptyResponse: 'El servidor ha retornat una resposta buida',
     },
 
     sessionInfo: {
@@ -403,10 +410,9 @@ export const ca: TranslationStructure = {
         },
         model: {
             title: 'MODEL',
-            default: 'Utilitza la configuració del CLI',
-            adaptiveUsage: 'Opus fins al 50% d\'ús, després Sonnet',
-            sonnet: 'Sonnet',
-            opus: 'Opus',
+            opus: 'Opus 4.5',
+            sonnet: 'Sonnet 4.5',
+            haiku: 'Haiku 4.5',
         },
         codexPermissionMode: {
             title: 'MODE DE PERMISOS CODEX',

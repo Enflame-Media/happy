@@ -5,6 +5,11 @@
 // Minimum required CLI version for full compatibility
 export const MINIMUM_CLI_VERSION = '0.10.0';
 
+// Minimum required server version for full compatibility
+// Set to "0.0.0" to accept all versions during early development
+// "0.0.0" is treated as a development version and always allowed
+export const MINIMUM_SERVER_VERSION = '0.0.0';
+
 /**
  * Compare two semantic version strings
  * @param version1 First version to compare

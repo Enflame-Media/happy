@@ -9,7 +9,8 @@ import { RoundButton } from '@/components/RoundButton';
 import { Modal } from '@/modal';
 import { layout } from '@/components/layout';
 import { t } from '@/text';
-import { getServerUrl, setServerUrl, validateServerUrl, getServerInfo } from '@/sync/serverConfig';
+import { getServerUrl, setServerUrl, validateServerUrl, getServerInfo, ServerInfoResponse } from '@/sync/serverConfig';
+import { isVersionSupported, MINIMUM_SERVER_VERSION } from '@/utils/versionUtils';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 const stylesheet = StyleSheet.create((theme) => ({
@@ -84,29 +85,82 @@ function ServerConfigScreen() {
     const [error, setError] = useState<string | null>(null);
     const [isValidating, setIsValidating] = useState(false);
 
+    /**
+     * Validates a server URL by fetching its root endpoint and checking the JSON response
+     * Validates: 1) Response is valid JSON, 2) Required fields present, 3) Version compatible
+     */
     const validateServer = async (url: string): Promise<boolean> => {
         try {
             setIsValidating(true);
             setError(null);
-            
+
+            // Fetch with JSON accept header
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
-                    'Accept': 'text/plain'
+                    'Accept': 'application/json'
                 }
             });
-            
+
+            // Handle HTTP errors
             if (!response.ok) {
-                setError(t('server.serverReturnedError'));
+                setError(t('server.httpError', { status: response.status }));
                 return false;
             }
-            
+
+            // Get response text for parsing
             const text = await response.text();
-            if (!text.includes('Welcome to Happy Server!')) {
-                setError(t('server.notValidHappyServer'));
+
+            // Handle empty response
+            if (!text.trim()) {
+                setError(t('server.emptyResponse'));
                 return false;
             }
-            
+
+            // Try to parse JSON
+            let data: unknown;
+            try {
+                data = JSON.parse(text);
+            } catch {
+                setError(t('server.invalidJsonResponse'));
+                return false;
+            }
+
+            // Validate response structure
+            const requiredFields = ['message', 'version', 'environment', 'timestamp'] as const;
+            const missingFields = requiredFields.filter(
+                field => !data || typeof data !== 'object' || !(field in data)
+            );
+
+            if (missingFields.length > 0) {
+                setError(t('server.missingRequiredFields', { fields: missingFields.join(', ') }));
+                return false;
+            }
+
+            // Type assertion after validation
+            const serverInfo = data as ServerInfoResponse;
+
+            // Validate field types are strings
+            for (const field of requiredFields) {
+                if (typeof serverInfo[field] !== 'string') {
+                    setError(t('server.missingRequiredFields', { fields: field }));
+                    return false;
+                }
+            }
+
+            // Normalize version (strip leading 'v' if present)
+            const serverVersion = serverInfo.version.replace(/^v/, '');
+
+            // Allow development servers ("0.0.0" always passes)
+            // Otherwise check version compatibility
+            if (serverVersion !== '0.0.0' && !isVersionSupported(serverVersion, MINIMUM_SERVER_VERSION)) {
+                setError(t('server.incompatibleVersion', {
+                    serverVersion: serverInfo.version,
+                    requiredVersion: MINIMUM_SERVER_VERSION
+                }));
+                return false;
+            }
+
             return true;
         } catch {
             setError(t('server.failedToConnectToServer'));
