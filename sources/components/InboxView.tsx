@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { useAcceptedFriends, useFriendRequests, useRequestedFriends, useSocketStatus, useFeedItems, useFeedLoaded, useFriendsLoaded } from '@/sync/storage';
+import { useAcceptedFriends, useFriendRequests, useRequestedFriends, useSocketStatus, useFeedItems, useFeedLoaded, useFriendsLoaded, storage } from '@/sync/storage';
 import { StatusDot } from './StatusDot';
 import { UserCard } from '@/components/UserCard';
 import { t } from '@/text';
@@ -15,6 +15,9 @@ import { Header } from './navigation/Header';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { FeedItemCard } from './FeedItemCard';
+import { useAuth } from '@/auth/AuthContext';
+import { removeFriend, sendFriendRequest } from '@/sync/apiFriends';
+import { useHappyAction } from '@/hooks/useHappyAction';
 
 const styles = StyleSheet.create((theme) => ({
     container: {
@@ -197,6 +200,7 @@ function HeaderTitleTablet() {
 
 export const InboxView = React.memo((_: InboxViewProps) => {
     const router = useRouter();
+    const { credentials } = useAuth();
     const friends = useAcceptedFriends();
     const friendRequests = useFriendRequests();
     const requestedFriends = useRequestedFriends();
@@ -205,6 +209,56 @@ export const InboxView = React.memo((_: InboxViewProps) => {
     const friendsLoaded = useFriendsLoaded();
     const { theme } = useUnistyles();
     const isTablet = useIsTablet();
+    const [processingId, setProcessingId] = React.useState<string | null>(null);
+
+    // Accept friend request action (mirrors friends list implementation)
+    const [acceptLoading, doAccept] = useHappyAction(async () => {
+        if (!credentials || !processingId) return;
+
+        const fromUserId = processingId;
+        // sendFriendRequest also accepts existing requests
+        const updatedProfile = await sendFriendRequest(
+            credentials,
+            fromUserId
+        );
+
+        if (updatedProfile) {
+            // Update local state immediately
+            const updatedFriends = { ...storage.getState().friends };
+            updatedFriends[fromUserId] = updatedProfile;
+            storage.getState().applyFriends(Object.values(updatedFriends));
+        }
+
+        setProcessingId(null);
+    });
+
+    // Reject friend request action (mirrors friends list implementation)
+    const [rejectLoading, doReject] = useHappyAction(async () => {
+        if (!credentials || !processingId) return;
+
+        const fromUserId = processingId;
+        // Use removeFriend to reject requests
+        await removeFriend(credentials, fromUserId);
+
+        // Remove from local state immediately
+        const updatedFriends = { ...storage.getState().friends };
+        delete updatedFriends[fromUserId];
+        storage.getState().applyFriends(Object.values(updatedFriends));
+
+        setProcessingId(null);
+    });
+
+    const handleAcceptRequest = React.useCallback((fromUserId: string) => {
+        setProcessingId(fromUserId);
+        doAccept();
+    }, [doAccept]);
+
+    const handleRejectRequest = React.useCallback((fromUserId: string) => {
+        setProcessingId(fromUserId);
+        doReject();
+    }, [doReject]);
+
+    const isProcessing = (id: string) => processingId === id && (acceptLoading || rejectLoading);
 
     const isLoading = !feedLoaded || !friendsLoaded;
     const isEmpty = !isLoading && friendRequests.length === 0 && requestedFriends.length === 0 && friends.length === 0 && feedItems.length === 0;
@@ -295,6 +349,9 @@ export const InboxView = React.memo((_: InboxViewProps) => {
                                     key={friend.id}
                                     user={friend}
                                     onPress={() => router.push(`/user/${friend.id}`)}
+                                    onAccept={() => handleAcceptRequest(friend.id)}
+                                    onReject={() => handleRejectRequest(friend.id)}
+                                    isProcessing={isProcessing(friend.id)}
                                 />
                             ))}
                         </ItemGroup>
