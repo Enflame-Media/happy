@@ -22,6 +22,7 @@ import { getTempData, type NewSessionData } from '@/utils/tempDataStore';
 import { linkTaskToSession } from '@/-zen/model/taskSessionLink';
 import { PermissionMode, ModelMode } from '@/components/PermissionModeSelector';
 import { AppError, ErrorCodes } from '@/utils/errors';
+import { RecentPathsDropdown } from '@/components/RecentPathsDropdown';
 
 
 // Helper function to get the most recent path for a machine from settings or sessions
@@ -59,6 +60,50 @@ const getRecentPathForMachine = (machineId: string | null, recentPaths: Array<{ 
     pathsWithTimestamps.sort((a, b) => b.timestamp - a.timestamp);
 
     return pathsWithTimestamps[0]?.path || defaultPath;
+};
+
+// Helper function to get all recent paths for a machine from settings and sessions
+const getAllRecentPathsForMachine = (
+    machineId: string | null,
+    recentPaths: Array<{ machineId: string; path: string }>
+): string[] => {
+    if (!machineId) return [];
+
+    const paths: string[] = [];
+    const pathSet = new Set<string>();
+
+    // First, add paths from recentMachinePaths (these are explicitly saved)
+    recentPaths.forEach(rp => {
+        if (rp.machineId === machineId && !pathSet.has(rp.path)) {
+            paths.push(rp.path);
+            pathSet.add(rp.path);
+        }
+    });
+
+    // Then add paths from session history
+    const sessions = Object.values(storage.getState().sessions);
+    const pathsWithTimestamps: Array<{ path: string; timestamp: number }> = [];
+
+    sessions.forEach(session => {
+        if (session.metadata?.machineId === machineId && session.metadata?.path) {
+            const path = session.metadata.path;
+            if (!pathSet.has(path)) {
+                pathSet.add(path);
+                pathsWithTimestamps.push({
+                    path,
+                    timestamp: session.updatedAt || session.createdAt
+                });
+            }
+        }
+    });
+
+    // Sort session paths by most recent first and add them
+    pathsWithTimestamps
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .forEach(item => paths.push(item.path));
+
+    // Return up to 5 recent paths for the dropdown
+    return paths.slice(0, 5);
 };
 
 // Helper function to update recent machine paths
@@ -282,15 +327,46 @@ function NewSessionScreen() {
         return getRecentPathForMachine(selectedMachineId, recentMachinePaths);
     });
 
+    const [showPathDropdown, setShowPathDropdown] = React.useState(false);
+
+    // Get all recent paths for dropdown
+    const recentPathsForMachine = React.useMemo(() => {
+        return getAllRecentPathsForMachine(selectedMachineId, recentMachinePaths);
+    }, [selectedMachineId, recentMachinePaths]);
+
     // Also update when pathFromParam changes (for web navigation)
     React.useEffect(() => {
         if (pathFromParam) {
             setSelectedPath(decodeURIComponent(pathFromParam));
         }
     }, [pathFromParam]);
+
+    // Show dropdown if there are recent paths, otherwise go directly to full picker
     const handlePathClick = React.useCallback(() => {
         if (selectedMachineId) {
-            // Pass original params so they can be preserved when returning
+            if (recentPathsForMachine.length > 0) {
+                setShowPathDropdown(true);
+            } else {
+                // No recent paths, go directly to full picker
+                const params = new URLSearchParams();
+                params.set('machineId', selectedMachineId);
+                if (prompt) params.set('returnPrompt', prompt);
+                if (dataId) params.set('returnDataId', dataId);
+                router.push(`/new/pick/path?${params.toString()}`);
+            }
+        }
+    }, [selectedMachineId, recentPathsForMachine.length, router, prompt, dataId]);
+
+    const handleClosePathDropdown = React.useCallback(() => {
+        setShowPathDropdown(false);
+    }, []);
+
+    const handleSelectPathFromDropdown = React.useCallback((path: string) => {
+        setSelectedPath(path);
+    }, []);
+
+    const handleBrowseAllPaths = React.useCallback(() => {
+        if (selectedMachineId) {
             const params = new URLSearchParams();
             params.set('machineId', selectedMachineId);
             if (prompt) params.set('returnPrompt', prompt);
@@ -512,6 +588,16 @@ function NewSessionScreen() {
                     </View>
                 </View>
             </View>
+
+            {/* Recent paths dropdown */}
+            <RecentPathsDropdown
+                visible={showPathDropdown}
+                onClose={handleClosePathDropdown}
+                recentPaths={recentPathsForMachine}
+                selectedPath={selectedPath}
+                onSelectPath={handleSelectPathFromDropdown}
+                onBrowseAll={handleBrowseAllPaths}
+            />
         </KeyboardAvoidingView>
     )
 }
