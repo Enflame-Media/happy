@@ -5,7 +5,7 @@ import { ItemGroup } from '@/components/ItemGroup';
 import { Item } from '@/components/Item';
 import { Typography } from '@/constants/Typography';
 import { useAllMachines } from '@/sync/storage';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { layout } from '@/components/layout';

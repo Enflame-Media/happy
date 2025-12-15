@@ -4,7 +4,7 @@ import { Text } from '@/components/StyledText';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useAuth } from '@/auth/AuthContext';
 import { getUsageForPeriod, calculateTotals, CostByTokenType } from '@/sync/apiUsage';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { t } from '@/text';
 
 interface SessionCostDisplayProps {

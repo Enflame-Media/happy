@@ -6,7 +6,7 @@ import { SessionsList } from './SessionsList';
 import { EmptyMainScreen } from './EmptyMainScreen';
 import { useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
 import { useSocketStatus } from '@/sync/storage';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { StatusDot } from './StatusDot';

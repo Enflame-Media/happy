@@ -3,7 +3,7 @@ import { View, ActivityIndicator, Platform, TextInput } from 'react-native';
 import { t } from '@/text';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { Octicons } from '@expo/vector-icons';
+import Octicons from '@expo/vector-icons/Octicons';
 import { Text } from '@/components/StyledText';
 import { Item } from '@/components/Item';
 import { ItemList } from '@/components/ItemList';

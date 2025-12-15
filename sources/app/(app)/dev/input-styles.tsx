@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, Platform } from 'react-native';
-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import Feather from '@expo/vector-icons/Feather';
 import { Typography } from '@/constants/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

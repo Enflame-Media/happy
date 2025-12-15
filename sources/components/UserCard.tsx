@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Pressable, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { UserProfile, getDisplayName } from '@/sync/friendTypes';
 import { Item } from '@/components/Item';
 import { Avatar } from '@/components/Avatar';

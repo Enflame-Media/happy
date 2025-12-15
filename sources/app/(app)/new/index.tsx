@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Platform, Pressable, useWindowDimensions } from 'react-native';
 import { Typography } from '@/constants/Typography';
 import { useAllMachines, storage, useSetting } from '@/sync/storage';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useUnistyles } from 'react-native-unistyles';
 import { layout } from '@/components/layout';

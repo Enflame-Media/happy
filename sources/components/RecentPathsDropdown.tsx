@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, Platform, Modal as RNModal } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Typography } from '@/constants/Typography';
 import { Item } from '@/components/Item';
 import { FloatingOverlay } from '@/components/FloatingOverlay';

@@ -3,7 +3,8 @@ import '../theme.css';
 import * as React from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Fonts from 'expo-font';
-import { FontAwesome } from '@expo/vector-icons';
+// Icon fonts are loaded on-demand by @expo/vector-icons v15+
+// Use direct imports (e.g., '@expo/vector-icons/Ionicons') throughout codebase for tree-shaking
 import { AuthCredentials, TokenStorage } from '@/auth/tokenStorage';
 import { AuthProvider } from '@/auth/AuthContext';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
@@ -92,10 +93,8 @@ async function loadFonts() {
                 'IBMPlexMono-Italic': require('@/assets/fonts/IBMPlexMono-Italic.ttf'),
                 'IBMPlexMono-SemiBold': require('@/assets/fonts/IBMPlexMono-SemiBold.ttf'),
 
-                // Bricolage Grotesque  
+                // Bricolage Grotesque
                 'BricolageGrotesque-Bold': require('@/assets/fonts/BricolageGrotesque-Bold.ttf'),
-
-                ...FontAwesome.font,
             });
         } else {
             // For Tauri, skip Font Face Observer as fonts are loaded via CSS
@@ -116,10 +115,8 @@ async function loadFonts() {
                         'IBMPlexMono-Italic': require('@/assets/fonts/IBMPlexMono-Italic.ttf'),
                         'IBMPlexMono-SemiBold': require('@/assets/fonts/IBMPlexMono-SemiBold.ttf'),
 
-                        // Bricolage Grotesque  
+                        // Bricolage Grotesque
                         'BricolageGrotesque-Bold': require('@/assets/fonts/BricolageGrotesque-Bold.ttf'),
-
-                        ...FontAwesome.font,
                     });
                 } catch {
                     // Ignore

@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRealtimeStatus } from '@/sync/storage';
 import { StatusDot } from './StatusDot';
 import { Typography } from '@/constants/Typography';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { stopRealtimeSession } from '@/realtime/RealtimeSession';
 import { useUnistyles } from 'react-native-unistyles';
 

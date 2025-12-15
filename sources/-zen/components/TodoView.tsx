@@ -1,4 +1,5 @@
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as React from 'react';
 import { Platform, Text, View, Pressable } from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';

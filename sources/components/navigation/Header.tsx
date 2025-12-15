@@ -3,7 +3,7 @@ import { View, Text, Platform, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Import directly from @react-navigation/native-stack (project dependency)
 import type { NativeStackHeaderProps } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { layout } from '../layout';
 import { useHeaderHeight, useIsTablet } from '@/utils/responsive';
 import { Typography } from '@/constants/Typography';

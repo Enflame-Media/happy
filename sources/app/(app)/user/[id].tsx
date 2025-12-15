@@ -14,7 +14,7 @@ import { layout } from '@/components/layout';
 import { useHappyAction } from '@/hooks/useHappyAction';
 import { Modal } from '@/modal';
 import { t } from '@/text';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 function UserProfileScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();

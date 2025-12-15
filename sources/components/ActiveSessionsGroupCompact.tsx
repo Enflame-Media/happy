@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Pressable, Platform } from 'react-native';
 import { Text } from '@/components/StyledText';
 import { Session, Machine } from '@/sync/storageTypes';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { getSessionName, useSessionStatus, getSessionAvatarId, formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { Avatar } from './Avatar';
 import { Typography } from '@/constants/Typography';

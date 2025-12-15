@@ -3,7 +3,7 @@ import { View, Pressable, Text } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Header } from './navigation/Header';
 import { SettingsView } from './SettingsView';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Typography } from '@/constants/Typography';
