@@ -23,13 +23,13 @@ import { isRunningOnMac } from '@/utils/platform';
 import { useDeviceType, useHeaderHeight, useIsLandscape, useIsTablet } from '@/utils/responsive';
 import { formatPathRelativeToHome, getSessionAvatarId, getSessionName, useSessionStatus } from '@/utils/sessionUtils';
 import { isVersionSupported, MINIMUM_CLI_VERSION } from '@/utils/versionUtils';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import * as React from 'react';
 import { useMemo } from 'react';
 import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useUnistyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 export const SessionView = React.memo((props: { id: string }) => {
     const sessionId = props.id;
@@ -41,6 +41,28 @@ export const SessionView = React.memo((props: { id: string }) => {
     const isLandscape = useIsLandscape();
     const deviceType = useDeviceType();
     const headerHeight = useHeaderHeight();
+    const styles = stylesheet;
+
+    // Memoize dynamic styles that depend on runtime values
+    const statusBarShadowStyle = useMemo(() => ({
+        position: 'absolute' as const,
+        top: 0,
+        left: 0,
+        right: 0,
+        height: safeArea.top,
+        backgroundColor: theme.colors.surface,
+        zIndex: 1000,
+        shadowColor: theme.colors.shadow.color,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: theme.colors.shadow.opacity,
+        shadowRadius: 3,
+        elevation: 5,
+    }), [safeArea.top, theme.colors.surface, theme.colors.shadow]);
+
+    const contentPaddingStyle = useMemo(() => ({
+        flex: 1,
+        paddingTop: !(isLandscape && deviceType === 'phone') ? safeArea.top + headerHeight : 0,
+    }), [isLandscape, deviceType, safeArea.top, headerHeight]);
 
     // Compute header props based on session state
     const headerProps = useMemo(() => {
@@ -85,34 +107,12 @@ export const SessionView = React.memo((props: { id: string }) => {
         <>
             {/* Status bar shadow for landscape mode */}
             {isLandscape && deviceType === 'phone' && (
-                <View style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: safeArea.top,
-                    backgroundColor: theme.colors.surface,
-                    zIndex: 1000,
-                    shadowColor: theme.colors.shadow.color,
-                    shadowOffset: {
-                        width: 0,
-                        height: 2,
-                    },
-                    shadowOpacity: theme.colors.shadow.opacity,
-                    shadowRadius: 3,
-                    elevation: 5,
-                }} />
+                <View style={statusBarShadowStyle} />
             )}
 
             {/* Header - always shown, hidden in landscape mode on phone */}
             {!(isLandscape && deviceType === 'phone') && (
-                <View style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    zIndex: 1000
-                }}>
+                <View style={styles.headerPosition}>
                     <ChatHeaderView
                         {...headerProps}
                         onBackPress={() => router.back()}
@@ -121,18 +121,18 @@ export const SessionView = React.memo((props: { id: string }) => {
             )}
 
             {/* Content based on state */}
-            <View style={{ flex: 1, paddingTop: !(isLandscape && deviceType === 'phone') ? safeArea.top + headerHeight : 0 }}>
+            <View style={contentPaddingStyle}>
                 {!isDataReady ? (
                     // Loading state
-                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={styles.loadingContainer}>
                         <ActivityIndicator size="small" color={theme.colors.textSecondary} />
                     </View>
                 ) : !session ? (
                     // Deleted state
-                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={styles.deletedContainer}>
                         <Ionicons name="trash-outline" size={48} color={theme.colors.textSecondary} />
-                        <Text style={{ color: theme.colors.text, fontSize: 20, marginTop: 16, fontWeight: '600' }}>{t('errors.sessionDeleted')}</Text>
-                        <Text style={{ color: theme.colors.textSecondary, fontSize: 15, marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>{t('errors.sessionDeletedDescription')}</Text>
+                        <Text style={styles.deletedTitle}>{t('errors.sessionDeleted')}</Text>
+                        <Text style={styles.deletedDescription}>{t('errors.sessionDeletedDescription')}</Text>
                     </View>
                 ) : (
                     // Normal session view
@@ -154,8 +154,28 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     const headerHeight = useHeaderHeight();
     const [message, setMessage] = React.useState('');
     const realtimeStatus = useRealtimeStatus();
+    const styles = stylesheet;
     const { messages, isLoaded } = useSessionMessages(sessionId);
     const acknowledgedCliVersions = useLocalSetting('acknowledgedCliVersions');
+
+    // Memoize dynamic styles that depend on runtime values
+    const cliWarningStyle = useMemo(() => ({
+        ...styles.cliWarningBase,
+        position: 'absolute' as const,
+        top: safeArea.top + headerHeight + ((!isTablet && realtimeStatus !== 'disconnected') ? 48 : 0) + 8,
+    }), [safeArea.top, headerHeight, isTablet, realtimeStatus, styles.cliWarningBase]);
+
+    const mainContentStyle = useMemo(() => ({
+        flexBasis: 0,
+        flexGrow: 1,
+        paddingBottom: safeArea.bottom + ((isRunningOnMac() || Platform.OS === 'web') ? 32 : 0),
+    }), [safeArea.bottom]);
+
+    const backButtonStyle = useMemo(() => ({
+        ...styles.backButtonBase,
+        top: safeArea.top + 8,
+        backgroundColor: `rgba(${theme.dark ? '28, 23, 28' : '255, 255, 255'}, 0.9)`,
+    }), [safeArea.top, theme.dark, styles.backButtonBase]);
 
     // Check if CLI version is outdated and not already acknowledged
     const cliVersion = session.metadata?.version;
@@ -316,13 +336,7 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         <>
             {/* Voice Assistant Status Bar - positioned as overlay at top */}
             {!isTablet && !(isLandscape && deviceType === 'phone') && realtimeStatus !== 'disconnected' && (
-                <View style={{
-                    position: 'absolute',
-                    top: 0, // Position at top since header is handled by parent
-                    left: 0,
-                    right: 0,
-                    zIndex: 999 // Below header but above content
-                }}>
+                <View style={styles.voiceStatusBarPosition}>
                     <VoiceAssistantStatusBar variant="full" />
                 </View>
             )}
@@ -331,82 +345,132 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
             {shouldShowCliWarning && !(isLandscape && deviceType === 'phone') && (
                 <Pressable
                     onPress={handleDismissCliWarning}
-                    style={{
-                        position: 'absolute',
-                        top: safeArea.top + headerHeight + ((!isTablet && realtimeStatus !== 'disconnected') ? 48 : 0) + 8, // Position below header and voice bar if present
-                        alignSelf: 'center',
-                        backgroundColor: '#FFF3CD',
-                        borderRadius: 100, // Fully rounded pill
-                        paddingHorizontal: 14,
-                        paddingVertical: 7,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        zIndex: 998, // Below voice bar but above content
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 4,
-                        elevation: 4,
-                    }}
+                    style={cliWarningStyle}
                 >
-                    <Ionicons name="warning-outline" size={14} color="#FF9500" style={{ marginRight: 6 }} />
-                    <Text style={{
-                        fontSize: 12,
-                        color: '#856404',
-                        fontWeight: '600'
-                    }}>
+                    <Ionicons name="warning-outline" size={14} color="#FF9500" style={staticStyles.warningIconMargin} />
+                    <Text style={styles.cliWarningText}>
                         {t('sessionInfo.cliVersionOutdated')}
                     </Text>
-                    <Ionicons name="close" size={14} color="#856404" style={{ marginLeft: 8 }} />
+                    <Ionicons name="close" size={14} color="#856404" style={staticStyles.closeIconMargin} />
                 </Pressable>
             )}
 
             {/* Main content area - no padding since header is overlay */}
-            <View style={{ flexBasis: 0, flexGrow: 1, paddingBottom: safeArea.bottom + ((isRunningOnMac() || Platform.OS === 'web') ? 32 : 0) }}>
+            <View style={mainContentStyle}>
                 <AgentContentView
                     content={content}
                     input={input}
                     placeholder={placeholder}
                 />
-            </View >
+            </View>
 
             {/* Back button for landscape phone mode when header is hidden */}
-            {
-                isLandscape && deviceType === 'phone' && (
-                    <Pressable
-                        onPress={() => router.back()}
-                        style={{
-                            position: 'absolute',
-                            top: safeArea.top + 8,
-                            left: 16,
-                            width: 44,
-                            height: 44,
-                            borderRadius: 22,
-                            backgroundColor: `rgba(${theme.dark ? '28, 23, 28' : '255, 255, 255'}, 0.9)`,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            ...Platform.select({
-                                ios: {
-                                    shadowColor: '#000',
-                                    shadowOffset: { width: 0, height: 2 },
-                                    shadowOpacity: 0.1,
-                                    shadowRadius: 4,
-                                },
-                                android: {
-                                    elevation: 2,
-                                }
-                            }),
-                        }}
-                        hitSlop={15}
-                    >
-                        <Ionicons
-                            name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
-                            size={Platform.select({ ios: 28, default: 24 })}
-                            color="#000"
-                        />
-                    </Pressable>
-                )
-            }
+            {isLandscape && deviceType === 'phone' && (
+                <Pressable
+                    onPress={() => router.back()}
+                    style={backButtonStyle}
+                    hitSlop={15}
+                >
+                    <Ionicons
+                        name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
+                        size={Platform.select({ ios: 28, default: 24 })}
+                        color="#000"
+                    />
+                </Pressable>
+            )}
         </>
     )
 }
+
+// Static styles for SessionView components
+const stylesheet = StyleSheet.create((theme) => ({
+    // Header position overlay
+    headerPosition: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1000,
+    },
+    // Loading state container
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    // Deleted state container
+    deletedContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    deletedTitle: {
+        color: theme.colors.text,
+        fontSize: 20,
+        marginTop: 16,
+        fontWeight: '600',
+    },
+    deletedDescription: {
+        color: theme.colors.textSecondary,
+        fontSize: 15,
+        marginTop: 8,
+        textAlign: 'center',
+        paddingHorizontal: 32,
+    },
+    // Voice status bar position
+    voiceStatusBarPosition: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 999,
+    },
+    // CLI warning base styles
+    cliWarningBase: {
+        alignSelf: 'center',
+        backgroundColor: '#FFF3CD',
+        borderRadius: 100,
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+        flexDirection: 'row',
+        alignItems: 'center',
+        zIndex: 998,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 4,
+    },
+    cliWarningText: {
+        fontSize: 12,
+        color: '#856404',
+        fontWeight: '600',
+    },
+    // Back button for landscape mode
+    backButtonBase: {
+        position: 'absolute',
+        left: 16,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+            },
+            android: {
+                elevation: 2,
+            },
+        }),
+    },
+}));
+
+// Static styles that don't need theme access - defined once, never recreated
+const staticStyles = {
+    warningIconMargin: { marginRight: 6 },
+    closeIconMargin: { marginLeft: 8 },
+} as const;

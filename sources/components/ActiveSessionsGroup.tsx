@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Pressable, Platform } from 'react-native';
 import { Text } from '@/components/StyledText';
 import { Session, Machine } from '@/sync/storageTypes';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { getSessionName, useSessionStatus, getSessionAvatarId, formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { Avatar } from './Avatar';
 import { Typography } from '@/constants/Typography';
@@ -167,6 +167,22 @@ const stylesheet = StyleSheet.create((theme) => ({
         fontWeight: '500',
         color: theme.colors.textSecondary,
         ...Typography.default(),
+    },
+    // Status row left section
+    statusRowLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    // Status indicators container (right side)
+    statusIndicators: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        transform: [{ translateY: 1 }],
+    },
+    // Task icon margin
+    taskIconMargin: {
+        marginRight: 2,
     },
 }));
 
@@ -363,20 +379,17 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
 
                 {/* Status line with dot */}
                 <View style={styles.statusRow}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={styles.statusRowLeft}>
                         <View style={styles.statusDotContainer}>
                             <StatusDot color={sessionStatus.statusDotColor} isPulsing={sessionStatus.isPulsing} />
                         </View>
-                        <Text style={[
-                            styles.statusText,
-                            { color: sessionStatus.statusColor }
-                        ]}>
+                        <Text style={[styles.statusText, { color: sessionStatus.statusColor }]}>
                             {sessionStatus.statusText}
                         </Text>
                     </View>
 
                     {/* Status indicators on the right side */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, transform: [{ translateY: 1 }] }}>
+                    <View style={styles.statusIndicators}>
                         {/* Draft status indicator */}
                         {session.draft && (
                             <View style={styles.taskStatusContainer}>
@@ -406,7 +419,7 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
                                         name="bulb-outline"
                                         size={10}
                                         color={styles.taskStatusText.color}
-                                        style={{ marginRight: 2 }}
+                                        style={styles.taskIconMargin}
                                     />
                                     <Text style={styles.taskStatusText}>
                                         {completedTasks}/{totalTasks}

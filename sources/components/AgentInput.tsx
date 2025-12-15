@@ -1,4 +1,5 @@
-import { Ionicons, Octicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import Octicons from '@expo/vector-icons/Octicons';
 import * as React from 'react';
 import { View, Platform, useWindowDimensions, Text, ActivityIndicator, TouchableWithoutFeedback, Pressable } from 'react-native';
 import { Image } from 'expo-image';
@@ -66,6 +67,12 @@ interface AgentInputProps {
 }
 
 const MAX_CONTEXT_SIZE = 190000;
+
+// Static hit slop values - defined once, reused across all Pressable components
+const actionButtonHitSlop = { top: 5, bottom: 10, left: 0, right: 0 } as const;
+
+// Platform-specific style for send button icon (marginTop adjustment for web)
+const sendButtonIconPlatformStyle = Platform.OS === 'web' ? { marginTop: 2 } : undefined;
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -264,6 +271,67 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     sendButtonIcon: {
         color: theme.colors.button.primary.tint,
+    },
+    // Action button with text and icon
+    actionButtonWithText: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: Platform.select({ default: 16, android: 20 }),
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        justifyContent: 'center',
+        height: 32,
+        gap: 6,
+    },
+    actionButtonText: {
+        fontSize: 13,
+        color: theme.colors.button.secondary.tint,
+        fontWeight: '600',
+        ...Typography.default('semiBold'),
+    },
+    // Git status button with flex
+    gitStatusButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: Platform.select({ default: 16, android: 20 }),
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+        height: 32,
+        flex: 1,
+        overflow: 'hidden',
+    },
+    // Status bar container with min height
+    statusBarContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingBottom: 4,
+        minHeight: 20,
+    },
+    statusBarLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    statusBarRight: {
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        minWidth: 150,
+    },
+    // Model section title
+    modelSectionTitle: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#666',
+        paddingHorizontal: 16,
+        paddingBottom: 4,
+        ...Typography.default('semiBold'),
+    },
+    // Voice button image container
+    voiceButtonImage: {
+        width: 24,
+        height: 24,
     },
 }));
 
@@ -603,38 +671,23 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                             <Pressable
                                                 key={mode}
                                                 onPress={() => handleSettingsSelect(mode)}
-                                                style={({ pressed }) => ({
-                                                    flexDirection: 'row',
-                                                    alignItems: 'center',
-                                                    paddingHorizontal: 16,
-                                                    paddingVertical: 8,
-                                                    backgroundColor: pressed ? theme.colors.surfacePressed : 'transparent'
-                                                })}
+                                                style={({ pressed }) => [
+                                                    styles.selectionItem,
+                                                    pressed && styles.selectionItemPressed
+                                                ]}
                                             >
-                                                <View style={{
-                                                    width: 16,
-                                                    height: 16,
-                                                    borderRadius: 8,
-                                                    borderWidth: 2,
-                                                    borderColor: isSelected ? theme.colors.radio.active : theme.colors.radio.inactive,
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    marginRight: 12
-                                                }}>
+                                                <View style={[
+                                                    styles.radioButton,
+                                                    isSelected ? styles.radioButtonActive : styles.radioButtonInactive
+                                                ]}>
                                                     {isSelected && (
-                                                        <View style={{
-                                                            width: 6,
-                                                            height: 6,
-                                                            borderRadius: 3,
-                                                            backgroundColor: theme.colors.radio.dot
-                                                        }} />
+                                                        <View style={styles.radioButtonDot} />
                                                     )}
                                                 </View>
-                                                <Text style={{
-                                                    fontSize: 14,
-                                                    color: isSelected ? theme.colors.radio.active : theme.colors.text,
-                                                    ...Typography.default()
-                                                }}>
+                                                <Text style={[
+                                                    styles.selectionLabel,
+                                                    isSelected ? styles.selectionLabelActive : styles.selectionLabelInactive
+                                                ]}>
                                                     {config.label}
                                                 </Text>
                                             </Pressable>
@@ -643,22 +696,11 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 </View>
 
                                 {/* Divider */}
-                                <View style={{
-                                    height: 1,
-                                    backgroundColor: theme.colors.divider,
-                                    marginHorizontal: 16
-                                }} />
+                                <View style={styles.overlayDivider} />
 
                                 {/* Model Section */}
-                                <View style={{ paddingVertical: 8 }}>
-                                    <Text style={{
-                                        fontSize: 12,
-                                        fontWeight: '600',
-                                        color: '#666',
-                                        paddingHorizontal: 16,
-                                        paddingBottom: 4,
-                                        ...Typography.default('semiBold')
-                                    }}>
+                                <View style={styles.overlaySection}>
+                                    <Text style={styles.modelSectionTitle}>
                                         {isCodex ? t('agentInput.codexModel.title') : t('agentInput.model.title')}
                                     </Text>
                                     {(isCodex
@@ -686,38 +728,23 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                             <Pressable
                                                 key={model}
                                                 onPress={() => handleModelSelect(model)}
-                                                style={({ pressed }) => ({
-                                                    flexDirection: 'row',
-                                                    alignItems: 'center',
-                                                    paddingHorizontal: 16,
-                                                    paddingVertical: 8,
-                                                    backgroundColor: pressed ? theme.colors.surfacePressed : 'transparent'
-                                                })}
+                                                style={({ pressed }) => [
+                                                    styles.selectionItem,
+                                                    pressed && styles.selectionItemPressed
+                                                ]}
                                             >
-                                                <View style={{
-                                                    width: 16,
-                                                    height: 16,
-                                                    borderRadius: 8,
-                                                    borderWidth: 2,
-                                                    borderColor: isSelected ? theme.colors.radio.active : theme.colors.radio.inactive,
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    marginRight: 12
-                                                }}>
+                                                <View style={[
+                                                    styles.radioButton,
+                                                    isSelected ? styles.radioButtonActive : styles.radioButtonInactive
+                                                ]}>
                                                     {isSelected && (
-                                                        <View style={{
-                                                            width: 6,
-                                                            height: 6,
-                                                            borderRadius: 3,
-                                                            backgroundColor: theme.colors.radio.dot
-                                                        }} />
+                                                        <View style={styles.radioButtonDot} />
                                                     )}
                                                 </View>
-                                                <Text style={{
-                                                    fontSize: 14,
-                                                    color: isSelected ? theme.colors.radio.active : theme.colors.text,
-                                                    ...Typography.default()
-                                                }}>
+                                                <Text style={[
+                                                    styles.selectionLabel,
+                                                    isSelected ? styles.selectionLabelActive : styles.selectionLabelInactive
+                                                ]}>
                                                     {config.label}
                                                 </Text>
                                             </Pressable>
@@ -731,15 +758,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
                 {/* Connection status, context warning, and permission mode */}
                 {(props.connectionStatus || contextWarning || props.permissionMode) && (
-                    <View style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        paddingHorizontal: 16,
-                        paddingBottom: 4,
-                        minHeight: 20, // Fixed minimum height to prevent jumping
-                    }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <View style={styles.statusBarContainer}>
+                        <View style={styles.statusBarLeft}>
                             {props.connectionStatus && (
                                 <>
                                     <StatusDot
@@ -768,11 +788,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 </Text>
                             )}
                         </View>
-                        <View style={{
-                            flexDirection: 'column',
-                            alignItems: 'flex-end',
-                            minWidth: 150, // Fixed minimum width to prevent layout shift
-                        }}>
+                        <View style={styles.statusBarRight}>
                             {props.permissionMode && (
                                 <Text style={{
                                     fontSize: 11,
@@ -826,22 +842,16 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             {props.onPermissionModeChange && (
                                 <Pressable
                                     onPress={handleSettingsPress}
-                                    hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
-                                    style={(p) => ({
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        borderRadius: Platform.select({ default: 16, android: 20 }),
-                                        paddingHorizontal: 8,
-                                        paddingVertical: 6,
-                                        justifyContent: 'center',
-                                        height: 32,
-                                        opacity: p.pressed ? 0.7 : 1,
-                                    })}
+                                    hitSlop={actionButtonHitSlop}
+                                    style={({ pressed }) => [
+                                        styles.actionButton,
+                                        pressed && styles.actionButtonPressed
+                                    ]}
                                 >
                                     <Octicons
                                         name={'gear'}
                                         size={16}
-                                        color={theme.colors.button.secondary.tint}
+                                        style={styles.actionButtonIcon}
                                     />
                                 </Pressable>
                             )}
@@ -853,30 +863,18 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         hapticsLight();
                                         props.onAgentClick?.();
                                     }}
-                                    hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
-                                    style={(p) => ({
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        borderRadius: Platform.select({ default: 16, android: 20 }),
-                                        paddingHorizontal: 10,
-                                        paddingVertical: 6,
-                                        justifyContent: 'center',
-                                        height: 32,
-                                        opacity: p.pressed ? 0.7 : 1,
-                                        gap: 6,
-                                    })}
+                                    hitSlop={actionButtonHitSlop}
+                                    style={({ pressed }) => [
+                                        styles.actionButtonWithText,
+                                        pressed && styles.actionButtonPressed
+                                    ]}
                                 >
                                     <Octicons
                                         name="cpu"
                                         size={14}
-                                        color={theme.colors.button.secondary.tint}
+                                        style={styles.actionButtonIcon}
                                     />
-                                    <Text style={{
-                                        fontSize: 13,
-                                        color: theme.colors.button.secondary.tint,
-                                        fontWeight: '600',
-                                        ...Typography.default('semiBold'),
-                                    }}>
+                                    <Text style={styles.actionButtonText}>
                                         {props.agentType === 'claude' ? t('agentInput.agent.claude') : t('agentInput.agent.codex')}
                                     </Text>
                                 </Pressable>
@@ -889,30 +887,18 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         hapticsLight();
                                         props.onMachineClick?.();
                                     }}
-                                    hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
-                                    style={(p) => ({
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        borderRadius: Platform.select({ default: 16, android: 20 }),
-                                        paddingHorizontal: 10,
-                                        paddingVertical: 6,
-                                        justifyContent: 'center',
-                                        height: 32,
-                                        opacity: p.pressed ? 0.7 : 1,
-                                        gap: 6,
-                                    })}
+                                    hitSlop={actionButtonHitSlop}
+                                    style={({ pressed }) => [
+                                        styles.actionButtonWithText,
+                                        pressed && styles.actionButtonPressed
+                                    ]}
                                 >
                                     <Ionicons
                                         name="desktop-outline"
                                         size={14}
-                                        color={theme.colors.button.secondary.tint}
+                                        style={styles.actionButtonIcon}
                                     />
-                                    <Text style={{
-                                        fontSize: 13,
-                                        color: theme.colors.button.secondary.tint,
-                                        fontWeight: '600',
-                                        ...Typography.default('semiBold'),
-                                    }}>
+                                    <Text style={styles.actionButtonText}>
                                         {props.machineName === null ? t('agentInput.noMachinesAvailable') : props.machineName}
                                     </Text>
                                 </Pressable>
@@ -925,30 +911,18 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         hapticsLight();
                                         props.onPathClick?.();
                                     }}
-                                    hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
-                                    style={(p) => ({
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        borderRadius: Platform.select({ default: 16, android: 20 }),
-                                        paddingHorizontal: 10,
-                                        paddingVertical: 6,
-                                        justifyContent: 'center',
-                                        height: 32,
-                                        opacity: p.pressed ? 0.7 : 1,
-                                        gap: 6,
-                                    })}
+                                    hitSlop={actionButtonHitSlop}
+                                    style={({ pressed }) => [
+                                        styles.actionButtonWithText,
+                                        pressed && styles.actionButtonPressed
+                                    ]}
                                 >
                                     <Ionicons
                                         name="folder-outline"
                                         size={14}
-                                        color={theme.colors.button.secondary.tint}
+                                        style={styles.actionButtonIcon}
                                     />
-                                    <Text style={{
-                                        fontSize: 13,
-                                        color: theme.colors.button.secondary.tint,
-                                        fontWeight: '600',
-                                        ...Typography.default('semiBold'),
-                                    }}>
+                                    <Text style={styles.actionButtonText}>
                                         {props.currentPath}
                                     </Text>
                                 </Pressable>
@@ -958,30 +932,24 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             {props.onAbort && (
                                 <Shaker ref={shakerRef}>
                                     <Pressable
-                                        style={(p) => ({
-                                            flexDirection: 'row',
-                                            alignItems: 'center',
-                                            borderRadius: Platform.select({ default: 16, android: 20 }),
-                                            paddingHorizontal: 8,
-                                            paddingVertical: 6,
-                                            justifyContent: 'center',
-                                            height: 32,
-                                            opacity: p.pressed ? 0.7 : 1,
-                                        })}
-                                        hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
+                                        style={({ pressed }) => [
+                                            styles.actionButton,
+                                            pressed && styles.actionButtonPressed
+                                        ]}
+                                        hitSlop={actionButtonHitSlop}
                                         onPress={handleAbortPress}
                                         disabled={isAborting}
                                     >
                                         {isAborting ? (
                                             <ActivityIndicator
                                                 size="small"
-                                                color={theme.colors.button.secondary.tint}
+                                                color={styles.actionButtonIcon.color}
                                             />
                                         ) : (
                                             <Octicons
                                                 name={"stop"}
                                                 size={16}
-                                                color={theme.colors.button.secondary.tint}
+                                                style={styles.actionButtonIcon}
                                             />
                                         )}
                                     </Pressable>
@@ -1002,14 +970,11 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             ]}
                         >
                             <Pressable
-                                style={(p) => ({
-                                    width: '100%',
-                                    height: '100%',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    opacity: p.pressed ? 0.7 : 1,
-                                })}
-                                hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
+                                style={({ pressed }) => [
+                                    styles.sendButtonInner,
+                                    pressed && styles.sendButtonInnerPressed
+                                ]}
+                                hitSlop={actionButtonHitSlop}
                                 onPress={() => {
                                     hapticsLight();
                                     if (hasText) {
@@ -1023,35 +988,30 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 {props.isSending ? (
                                     <ActivityIndicator
                                         size="small"
-                                        color={theme.colors.button.primary.tint}
+                                        color={styles.sendButtonIcon.color}
                                     />
                                 ) : hasText ? (
                                     <Octicons
                                         name="arrow-up"
                                         size={16}
-                                        color={theme.colors.button.primary.tint}
                                         style={[
                                             styles.sendButtonIcon,
-                                            { marginTop: Platform.OS === 'web' ? 2 : 0 }
+                                            sendButtonIconPlatformStyle
                                         ]}
                                     />
                                 ) : props.onMicPress && !props.isMicActive ? (
                                     <Image
                                         source={require('@/assets/images/icon-voice-white.png')}
-                                        style={{
-                                            width: 24,
-                                            height: 24,
-                                        }}
+                                        style={styles.voiceButtonImage}
                                         tintColor={theme.colors.button.primary.tint}
                                     />
                                 ) : (
                                     <Octicons
                                         name="arrow-up"
                                         size={16}
-                                        color={theme.colors.button.primary.tint}
                                         style={[
                                             styles.sendButtonIcon,
-                                            { marginTop: Platform.OS === 'web' ? 2 : 0 }
+                                            sendButtonIconPlatformStyle
                                         ]}
                                     />
                                 )}
@@ -1067,7 +1027,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 // Git Status Button Component
 function GitStatusButton({ sessionId, onPress }: { sessionId?: string, onPress?: () => void }) {
     const hasMeaningfulGitStatus = useHasMeaningfulGitStatus(sessionId || '');
-    const { theme } = useUnistyles();
+    const styles = stylesheet;
 
     if (!sessionId || !onPress) {
         return null;
@@ -1075,18 +1035,11 @@ function GitStatusButton({ sessionId, onPress }: { sessionId?: string, onPress?:
 
     return (
         <Pressable
-            style={(p) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                borderRadius: Platform.select({ default: 16, android: 20 }),
-                paddingHorizontal: 8,
-                paddingVertical: 6,
-                height: 32,
-                opacity: p.pressed ? 0.7 : 1,
-                flex: 1,
-                overflow: 'hidden',
-            })}
-            hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
+            style={({ pressed }) => [
+                styles.gitStatusButton,
+                pressed && styles.actionButtonPressed
+            ]}
+            hitSlop={actionButtonHitSlop}
             onPress={() => {
                 hapticsLight();
                 onPress?.();
@@ -1098,7 +1051,7 @@ function GitStatusButton({ sessionId, onPress }: { sessionId?: string, onPress?:
                 <Octicons
                     name="git-branch"
                     size={16}
-                    color={theme.colors.button.secondary.tint}
+                    style={styles.actionButtonIcon}
                 />
             )}
         </Pressable>
