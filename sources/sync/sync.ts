@@ -9,6 +9,7 @@ import { ApiEphemeralUpdateSchema, ApiMessage, ApiUpdateContainerSchema } from '
 import type { ApiEphemeralActivityUpdate } from './apiTypes';
 import { Session, Machine, MachineMetadata } from './storageTypes';
 import { InvalidateSync } from '@/utils/sync';
+import { LRUCache } from '@/utils/LRUCache';
 import { ActivityUpdateAccumulator } from './reducer/activityUpdateAccumulator';
 import { randomUUID } from 'expo-crypto';
 import * as Notifications from 'expo-notifications';
@@ -57,6 +58,12 @@ function arraysEqual<T>(a: T[] | undefined, b: T[] | undefined): boolean {
     return true;
 }
 
+/**
+ * Maximum number of session message syncs to keep in memory.
+ * Older entries are evicted using LRU (Least Recently Used) policy.
+ */
+const MAX_CACHED_MESSAGE_SYNCS = 20;
+
 class Sync {
 
     encryption!: Encryption;
@@ -65,7 +72,10 @@ class Sync {
     private credentials!: AuthCredentials;
     public encryptionCache = new EncryptionCache();
     private sessionsSync: InvalidateSync;
-    private messagesSync = new Map<string, InvalidateSync>();
+    private messagesSync = new LRUCache<string, InvalidateSync>(
+        MAX_CACHED_MESSAGE_SYNCS,
+        (_, sync) => sync.stop()
+    );
     private sessionReceivedMessages = new Map<string, Set<string>>();
     private sessionDataKeys = new Map<string, Uint8Array>(); // Store session data encryption keys internally
     private machineDataKeys = new Map<string, Uint8Array>(); // Store machine data encryption keys internally
