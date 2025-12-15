@@ -4,6 +4,8 @@
  * Provides quick access to common session actions:
  * - View session info
  * - Copy session ID
+ * - Change permission mode (connected sessions only)
+ * - Change model (connected sessions only)
  * - Archive session (connected sessions only)
  * - Delete session (disconnected sessions only)
  *
@@ -15,6 +17,7 @@ import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { Session } from '@/sync/storageTypes';
 import { sessionKill, sessionDelete } from '@/sync/ops';
+import { storage } from '@/sync/storage';
 import { Modal } from '@/modal';
 import { t } from '@/text';
 import { showActionSheet, ActionSheetOption } from '@/utils/ActionSheet';
@@ -74,6 +77,104 @@ export function useSessionContextMenu(session: Session) {
                 }
             },
         });
+
+        // Change mode - only for connected sessions
+        if (sessionStatus.isConnected) {
+            const isCodex = session.metadata?.flavor === 'gpt' || session.metadata?.flavor === 'openai';
+
+            options.push({
+                label: t('sessionContextMenu.changeMode'),
+                onPress: () => {
+                    const modeOptions: ActionSheetOption[] = isCodex
+                        ? [
+                              {
+                                  label: t('agentInput.codexPermissionMode.default'),
+                                  onPress: () => storage.getState().updateSessionPermissionMode(session.id, 'default'),
+                              },
+                              {
+                                  label: t('agentInput.codexPermissionMode.readOnly'),
+                                  onPress: () => storage.getState().updateSessionPermissionMode(session.id, 'read-only'),
+                              },
+                              {
+                                  label: t('agentInput.codexPermissionMode.safeYolo'),
+                                  onPress: () => storage.getState().updateSessionPermissionMode(session.id, 'safe-yolo'),
+                              },
+                              {
+                                  label: t('agentInput.codexPermissionMode.yolo'),
+                                  onPress: () => storage.getState().updateSessionPermissionMode(session.id, 'yolo'),
+                              },
+                          ]
+                        : [
+                              {
+                                  label: t('agentInput.permissionMode.default'),
+                                  onPress: () => storage.getState().updateSessionPermissionMode(session.id, 'default'),
+                              },
+                              {
+                                  label: t('agentInput.permissionMode.acceptEdits'),
+                                  onPress: () => storage.getState().updateSessionPermissionMode(session.id, 'acceptEdits'),
+                              },
+                              {
+                                  label: t('agentInput.permissionMode.plan'),
+                                  onPress: () => storage.getState().updateSessionPermissionMode(session.id, 'plan'),
+                              },
+                              {
+                                  label: t('agentInput.permissionMode.bypassPermissions'),
+                                  onPress: () => storage.getState().updateSessionPermissionMode(session.id, 'bypassPermissions'),
+                              },
+                          ];
+
+                    showActionSheet({
+                        title: isCodex ? t('agentInput.codexPermissionMode.title') : t('agentInput.permissionMode.title'),
+                        options: modeOptions,
+                    });
+                },
+            });
+
+            // Change model - only for connected sessions
+            options.push({
+                label: t('sessionContextMenu.changeModel'),
+                onPress: () => {
+                    const modelOptions: ActionSheetOption[] = isCodex
+                        ? [
+                              {
+                                  label: t('agentInput.codexModel.gpt5Minimal'),
+                                  onPress: () => storage.getState().updateSessionModelMode(session.id, 'gpt-5-minimal'),
+                              },
+                              {
+                                  label: t('agentInput.codexModel.gpt5Low'),
+                                  onPress: () => storage.getState().updateSessionModelMode(session.id, 'gpt-5-low'),
+                              },
+                              {
+                                  label: t('agentInput.codexModel.gpt5Medium'),
+                                  onPress: () => storage.getState().updateSessionModelMode(session.id, 'gpt-5-medium'),
+                              },
+                              {
+                                  label: t('agentInput.codexModel.gpt5High'),
+                                  onPress: () => storage.getState().updateSessionModelMode(session.id, 'gpt-5-high'),
+                              },
+                          ]
+                        : [
+                              {
+                                  label: t('agentInput.model.opus'),
+                                  onPress: () => storage.getState().updateSessionModelMode(session.id, 'opus'),
+                              },
+                              {
+                                  label: t('agentInput.model.sonnet'),
+                                  onPress: () => storage.getState().updateSessionModelMode(session.id, 'sonnet'),
+                              },
+                              {
+                                  label: t('agentInput.model.haiku'),
+                                  onPress: () => storage.getState().updateSessionModelMode(session.id, 'haiku'),
+                              },
+                          ];
+
+                    showActionSheet({
+                        title: isCodex ? t('agentInput.codexModel.title') : t('agentInput.model.title'),
+                        options: modelOptions,
+                    });
+                },
+            });
+        }
 
         // Archive session - only for connected sessions
         if (sessionStatus.isConnected) {

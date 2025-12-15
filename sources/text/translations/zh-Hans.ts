@@ -342,6 +342,8 @@ export const zhHans: TranslationStructure = {
         // Used by session long-press context menu (SessionsList.tsx, ActiveSessionsGroup.tsx)
         viewInfo: '查看信息',
         copySessionId: '复制会话 ID',
+        changeMode: '更改模式',
+        changeModel: '更改模型',
     },
 
     sessionInfo: {

@@ -313,6 +313,8 @@ export const ru: TranslationStructure = {
         // Used by session long-press context menu (SessionsList.tsx, ActiveSessionsGroup.tsx)
         viewInfo: 'Просмотреть информацию',
         copySessionId: 'Копировать ID сессии',
+        changeMode: 'Изменить режим',
+        changeModel: 'Изменить модель',
     },
 
     sessionInfo: {

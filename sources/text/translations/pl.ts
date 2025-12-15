@@ -351,6 +351,8 @@ export const pl: TranslationStructure = {
         // Used by session long-press context menu (SessionsList.tsx, ActiveSessionsGroup.tsx)
         viewInfo: 'Zobacz informacje',
         copySessionId: 'Kopiuj ID sesji',
+        changeMode: 'Zmień tryb',
+        changeModel: 'Zmień model',
     },
 
     sessionInfo: {

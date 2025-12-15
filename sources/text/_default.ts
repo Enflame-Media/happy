@@ -401,6 +401,8 @@ export const en = {
         // Used by session long-press context menu (SessionsList.tsx, ActiveSessionsGroup.tsx)
         viewInfo: 'View Info',
         copySessionId: 'Copy Session ID',
+        changeMode: 'Change Mode',
+        changeModel: 'Change Model',
     },
 
     components: {
