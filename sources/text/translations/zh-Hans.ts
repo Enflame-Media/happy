@@ -979,5 +979,28 @@ export const zhHans: TranslationStructure = {
         friendRequestGeneric: '新的好友请求',
         friendAccepted: ({ name }: { name: string }) => `您现在与 ${name} 成为了好友`,
         friendAcceptedGeneric: '好友请求已接受',
+    },
+
+    onboarding: {
+        // Onboarding carousel shown on first launch
+        skip: '跳过',
+        next: '下一步',
+        getStarted: '开始使用',
+        slideCounter: ({ current, total }: { current: number; total: number }) => `${current} / ${total}`,
+        // Slide 1: Welcome
+        welcomeTitle: '欢迎使用 Happy Coder',
+        welcomeDescription: '随时随地用手机控制 Claude Code 和 Codex',
+        // Slide 2: QR Scanning
+        scanTitle: '轻松连接终端',
+        scanDescription: '扫描终端的二维码即可通过端到端加密立即连接',
+        // Slide 3: Session Control
+        controlTitle: '全面的会话控制',
+        controlDescription: '批准权限、发送消息并实时监控您的 AI 会话',
+        // Slide 4: Voice
+        voiceTitle: '语音驱动编程',
+        voiceDescription: '与 Claude 对话并获得即时语音回复，双手无需离开键盘',
+        // Slide 5: Get Started
+        startTitle: '准备好开始编程了吗？',
+        startDescription: '连接您的第一个终端，开始使用 AI 辅助编程',
     }
 } as const;

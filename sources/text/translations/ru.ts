@@ -1000,6 +1000,29 @@ export const ru: TranslationStructure = {
         friendRequestGeneric: 'Новый запрос в друзья',
         friendAccepted: ({ name }: { name: string }) => `Вы теперь друзья с ${name}`,
         friendAcceptedGeneric: 'Запрос в друзья принят',
+    },
+
+    onboarding: {
+        // Onboarding carousel shown on first launch
+        skip: 'Пропустить',
+        next: 'Далее',
+        getStarted: 'Начать',
+        slideCounter: ({ current, total }: { current: number; total: number }) => `${current} из ${total}`,
+        // Slide 1: Welcome
+        welcomeTitle: 'Добро пожаловать в Happy Coder',
+        welcomeDescription: 'Управляйте Claude Code и Codex из любого места с вашего телефона',
+        // Slide 2: QR Scanning
+        scanTitle: 'Простое Подключение к Терминалу',
+        scanDescription: 'Отсканируйте QR-код с вашего терминала для мгновенного подключения со сквозным шифрованием',
+        // Slide 3: Session Control
+        controlTitle: 'Полный Контроль Сессии',
+        controlDescription: 'Одобряйте разрешения, отправляйте сообщения и следите за вашими AI-сессиями в реальном времени',
+        // Slide 4: Voice
+        voiceTitle: 'Программирование Голосом',
+        voiceDescription: 'Разговаривайте с Claude и получайте мгновенные аудио ответы, пока ваши руки остаются на клавиатуре',
+        // Slide 5: Get Started
+        startTitle: 'Готовы Программировать?',
+        startDescription: 'Подключите ваш первый терминал и начните программировать с помощью ИИ-ассистента',
     }
 } as const;
 

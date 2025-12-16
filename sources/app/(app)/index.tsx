@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as React from 'react';
 import { encodeBase64 } from "@/encryption/base64";
 import { authGetToken } from "@/auth/authGetToken";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { getRandomBytesAsync } from "expo-crypto";
 import { useIsLandscape } from "@/utils/responsive";
@@ -14,6 +14,7 @@ import { trackAccountCreated, trackAccountRestored } from '@/track';
 import { HomeHeaderNotAuth } from "@/components/HomeHeader";
 import { MainView } from "@/components/MainView";
 import { t } from '@/text';
+import { useLocalSetting } from "@/sync/storage";
 
 function Home() {
     const auth = useAuth();
@@ -26,6 +27,23 @@ function Home() {
 }
 
 function Authenticated() {
+    const router = useRouter();
+    const hasSeenOnboarding = useLocalSetting('hasSeenOnboarding');
+
+    // Redirect to onboarding on first launch
+    useFocusEffect(
+        React.useCallback(() => {
+            if (!hasSeenOnboarding) {
+                router.replace('/onboarding');
+            }
+        }, [hasSeenOnboarding, router])
+    );
+
+    // Don't render main view until we confirm user has completed onboarding
+    if (!hasSeenOnboarding) {
+        return null;
+    }
+
     return <MainView variant="phone" />;
 }
 

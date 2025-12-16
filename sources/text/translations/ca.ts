@@ -977,6 +977,29 @@ export const ca: TranslationStructure = {
         friendRequestGeneric: 'Nova sol·licitud d\'amistat',
         friendAccepted: ({ name }: { name: string }) => `Ara ets amic de ${name}`,
         friendAcceptedGeneric: 'Sol·licitud d\'amistat acceptada',
+    },
+
+    onboarding: {
+        // Onboarding carousel shown on first launch
+        skip: 'Omet',
+        next: 'Següent',
+        getStarted: 'Començar',
+        slideCounter: ({ current, total }: { current: number; total: number }) => `${current} de ${total}`,
+        // Slide 1: Welcome
+        welcomeTitle: 'Benvingut a Happy Coder',
+        welcomeDescription: 'Controla Claude Code i Codex des de qualsevol lloc amb el teu telèfon',
+        // Slide 2: QR Scanning
+        scanTitle: 'Connexió Fàcil al Terminal',
+        scanDescription: 'Escaneja un codi QR des del teu terminal per connectar-te instantàniament amb xifratge punt a punt',
+        // Slide 3: Session Control
+        controlTitle: 'Control Complet de Sessió',
+        controlDescription: 'Aprova permisos, envia missatges i supervisa les teves sessions d\'IA en temps real',
+        // Slide 4: Voice
+        voiceTitle: 'Programació amb Veu',
+        voiceDescription: 'Parla amb Claude i rep respostes d\'àudio instantànies mentre les teves mans segueixen al teclat',
+        // Slide 5: Get Started
+        startTitle: 'Llest per Programar?',
+        startDescription: 'Connecta el teu primer terminal i comença a programar amb assistència d\'IA',
     }
 } as const;
 

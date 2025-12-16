@@ -978,6 +978,29 @@ export const es: TranslationStructure = {
         friendRequestGeneric: 'Nueva solicitud de amistad',
         friendAccepted: ({ name }: { name: string }) => `Ahora eres amigo de ${name}`,
         friendAcceptedGeneric: 'Solicitud de amistad aceptada',
+    },
+
+    onboarding: {
+        // Onboarding carousel shown on first launch
+        skip: 'Omitir',
+        next: 'Siguiente',
+        getStarted: 'Comenzar',
+        slideCounter: ({ current, total }: { current: number; total: number }) => `${current} de ${total}`,
+        // Slide 1: Welcome
+        welcomeTitle: 'Bienvenido a Happy Coder',
+        welcomeDescription: 'Controla Claude Code y Codex desde cualquier lugar con tu teléfono',
+        // Slide 2: QR Scanning
+        scanTitle: 'Conexión Fácil al Terminal',
+        scanDescription: 'Escanea un código QR desde tu terminal para conectarte instantáneamente con cifrado de extremo a extremo',
+        // Slide 3: Session Control
+        controlTitle: 'Control Completo de Sesión',
+        controlDescription: 'Aprueba permisos, envía mensajes y monitorea tus sesiones de IA en tiempo real',
+        // Slide 4: Voice
+        voiceTitle: 'Programación con Voz',
+        voiceDescription: 'Habla con Claude y recibe respuestas de audio instantáneas mientras tus manos permanecen en el teclado',
+        // Slide 5: Get Started
+        startTitle: '¿Listo para Programar?',
+        startDescription: 'Conecta tu primer terminal y comienza a programar con asistencia de IA',
     }
 } as const;
 
