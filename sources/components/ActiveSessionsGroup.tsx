@@ -7,6 +7,7 @@ import { getSessionName, useSessionStatus, getSessionAvatarId, formatPathRelativ
 import { Avatar } from './Avatar';
 import { Typography } from '@/constants/Typography';
 import { StatusDot } from './StatusDot';
+import { ContextMeter } from './ContextMeter';
 import { useAllMachines } from '@/sync/storage';
 import { StyleSheet } from 'react-native-unistyles';
 import { ProjectGitStatus } from './ProjectGitStatus';
@@ -392,6 +393,11 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
 
                     {/* Status indicators on the right side */}
                     <View style={styles.statusIndicators}>
+                        {/* Context usage indicator */}
+                        {session.latestUsage?.contextSize != null && session.latestUsage.contextSize > 0 && (
+                            <ContextMeter contextSize={session.latestUsage.contextSize} />
+                        )}
+
                         {/* Draft status indicator */}
                         {session.draft && (
                             <View style={styles.taskStatusContainer}>

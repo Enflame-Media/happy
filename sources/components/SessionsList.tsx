@@ -14,6 +14,7 @@ import { useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListView
 import { Typography } from '@/constants/Typography';
 import { Session } from '@/sync/storageTypes';
 import { StatusDot } from './StatusDot';
+import { ContextMeter } from './ContextMeter';
 import { StyleSheet } from 'react-native-unistyles';
 import { useIsTablet } from '@/utils/responsive';
 import { requestReview } from '@/utils/requestReview';
@@ -121,6 +122,17 @@ const stylesheet = StyleSheet.create((theme) => ({
     statusRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    statusRowLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    statusIndicators: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        transform: [{ translateY: 1 }],
     },
     statusDotContainer: {
         alignItems: 'center',
@@ -371,15 +383,25 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
 
                 {/* Status line with dot */}
                 <View style={styles.statusRow}>
-                    <View style={styles.statusDotContainer}>
-                        <StatusDot color={sessionStatus.statusDotColor} isPulsing={sessionStatus.isPulsing} />
+                    <View style={styles.statusRowLeft}>
+                        <View style={styles.statusDotContainer}>
+                            <StatusDot color={sessionStatus.statusDotColor} isPulsing={sessionStatus.isPulsing} />
+                        </View>
+                        <Text style={[
+                            styles.statusText,
+                            { color: sessionStatus.statusColor }
+                        ]}>
+                            {sessionStatus.statusText}
+                        </Text>
                     </View>
-                    <Text style={[
-                        styles.statusText,
-                        { color: sessionStatus.statusColor }
-                    ]}>
-                        {sessionStatus.statusText}
-                    </Text>
+
+                    {/* Status indicators on the right side */}
+                    <View style={styles.statusIndicators}>
+                        {/* Context usage indicator */}
+                        {session.latestUsage?.contextSize != null && session.latestUsage.contextSize > 0 && (
+                            <ContextMeter contextSize={session.latestUsage.contextSize} />
+                        )}
+                    </View>
                 </View>
             </View>
         </Pressable>

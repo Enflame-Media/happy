@@ -7,6 +7,7 @@ import { getSessionName, useSessionStatus, getSessionAvatarId, formatPathRelativ
 import { Avatar } from './Avatar';
 import { Typography } from '@/constants/Typography';
 import { StatusDot } from './StatusDot';
+import { ContextMeter } from './ContextMeter';
 import { useAllMachines } from '@/sync/storage';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
@@ -80,6 +81,18 @@ const stylesheet = StyleSheet.create((theme) => ({
     sessionTitleRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    sessionTitleRowLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    statusIndicators: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginLeft: 8,
     },
     sessionTitle: {
         fontSize: 15,
@@ -301,56 +314,66 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
             <View style={styles.sessionContent}>
                 {/* Title line with status */}
                 <View style={styles.sessionTitleRow}>
-                    {/* Status dot or draft icon on the left */}
-                    {(() => {
-                        // Show draft icon when online with draft
-                        if (sessionStatus.state === 'waiting' && session.draft) {
-                            return (
-                                <Ionicons
-                                    name="create-outline"
-                                    size={14}
-                                    color={theme.colors.textSecondary}
-                                    style={{ marginRight: 8 }}
-                                />
-                            );
-                        }
-                        
-                        // Show status dot only for permission_required/thinking states
-                        if (sessionStatus.state === 'permission_required' || sessionStatus.state === 'thinking') {
-                            return (
-                                <View style={[styles.statusDotContainer, { marginRight: 8 }]}>
-                                    <StatusDot 
-                                        color={sessionStatus.statusDotColor} 
-                                        isPulsing={sessionStatus.isPulsing} 
+                    <View style={styles.sessionTitleRowLeft}>
+                        {/* Status dot or draft icon on the left */}
+                        {(() => {
+                            // Show draft icon when online with draft
+                            if (sessionStatus.state === 'waiting' && session.draft) {
+                                return (
+                                    <Ionicons
+                                        name="create-outline"
+                                        size={14}
+                                        color={theme.colors.textSecondary}
+                                        style={{ marginRight: 8 }}
                                     />
-                                </View>
-                            );
-                        }
-                        
-                        // Show grey dot for online without draft
-                        if (sessionStatus.state === 'waiting') {
-                            return (
-                                <View style={[styles.statusDotContainer, { marginRight: 8 }]}>
-                                    <StatusDot 
-                                        color={theme.colors.textSecondary} 
-                                        isPulsing={false} 
-                                    />
-                                </View>
-                            );
-                        }
-                        
-                        return null;
-                    })()}
-                    
-                    <Text
-                        style={[
-                            styles.sessionTitle,
-                            sessionStatus.isConnected ? styles.sessionTitleConnected : styles.sessionTitleDisconnected
-                        ]}
-                        numberOfLines={2}
-                    >
-                        {sessionName}
-                    </Text>
+                                );
+                            }
+
+                            // Show status dot only for permission_required/thinking states
+                            if (sessionStatus.state === 'permission_required' || sessionStatus.state === 'thinking') {
+                                return (
+                                    <View style={[styles.statusDotContainer, { marginRight: 8 }]}>
+                                        <StatusDot
+                                            color={sessionStatus.statusDotColor}
+                                            isPulsing={sessionStatus.isPulsing}
+                                        />
+                                    </View>
+                                );
+                            }
+
+                            // Show grey dot for online without draft
+                            if (sessionStatus.state === 'waiting') {
+                                return (
+                                    <View style={[styles.statusDotContainer, { marginRight: 8 }]}>
+                                        <StatusDot
+                                            color={theme.colors.textSecondary}
+                                            isPulsing={false}
+                                        />
+                                    </View>
+                                );
+                            }
+
+                            return null;
+                        })()}
+
+                        <Text
+                            style={[
+                                styles.sessionTitle,
+                                sessionStatus.isConnected ? styles.sessionTitleConnected : styles.sessionTitleDisconnected
+                            ]}
+                            numberOfLines={2}
+                        >
+                            {sessionName}
+                        </Text>
+                    </View>
+
+                    {/* Status indicators on the right side */}
+                    <View style={styles.statusIndicators}>
+                        {/* Context usage indicator */}
+                        {session.latestUsage?.contextSize != null && session.latestUsage.contextSize > 0 && (
+                            <ContextMeter contextSize={session.latestUsage.contextSize} />
+                        )}
+                    </View>
                 </View>
             </View>
         </Pressable>
