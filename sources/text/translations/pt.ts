@@ -57,6 +57,7 @@ export const pt: TranslationStructure = {
         loading: 'Carregando...',
         retry: 'Tentar novamente',
         on: 'em',
+        undo: 'Desfazer',
     },
 
     profile: {
@@ -196,6 +197,12 @@ export const pt: TranslationStructure = {
         markdownCopyV2Subtitle: 'Pressione e segure para abrir modal de cópia',
         hideInactiveSessions: 'Ocultar sessões inativas',
         hideInactiveSessionsSubtitle: 'Mostre apenas os chats ativos na sua lista',
+        // Notifications section
+        notifications: 'Notificações',
+        notificationsDescription: 'Configure como receber alertas sobre suas sessões.',
+        contextNotifications: 'Alertas de uso de contexto',
+        contextNotificationsEnabled: 'Notificar em 80% e 95%',
+        contextNotificationsDisabled: 'Sem alertas de uso de contexto',
     },
 
     errors: {
@@ -371,6 +378,7 @@ export const pt: TranslationStructure = {
         navigatingToReply: 'Navegando para a sessão',
         sessionArchived: 'Sessão arquivada',
         sessionDeleted: 'Sessão excluída',
+        archiveUndone: 'Arquivo cancelado',
     },
 
     sessionInfo: {
@@ -452,6 +460,12 @@ export const pt: TranslationStructure = {
             response: 'Resposta',
             inputOutput: ({ input, output }: { input: string; output: string }) => `Ent: ${input} / Saí: ${output}`,
             andMore: ({ count }: { count: number }) => `+${count} mais...`,
+        },
+        contextHistory: {
+            sectionTitle: 'Histórico do contexto',
+            notEnoughData: 'Dados insuficientes para exibir o histórico',
+            currentUsage: ({ tokens }: { tokens: string }) => `Atual: ${tokens} tokens`,
+            dataPoints: ({ count }: { count: number }) => `${count} pontos de dados`,
         },
 
     },

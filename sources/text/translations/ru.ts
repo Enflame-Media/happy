@@ -68,6 +68,7 @@ export const ru: TranslationStructure = {
         loading: 'Загрузка...',
         retry: 'Повторить',
         on: 'на',
+        undo: 'Отменить',
     },
 
     connect: {
@@ -179,6 +180,12 @@ export const ru: TranslationStructure = {
         markdownCopyV2Subtitle: 'Долгое нажатие открывает модальное окно копирования',
         hideInactiveSessions: 'Скрывать неактивные сессии',
         hideInactiveSessionsSubtitle: 'Показывать в списке только активные чаты',
+        // Notifications section
+        notifications: 'Уведомления',
+        notificationsDescription: 'Настройте получение уведомлений о ваших сессиях.',
+        contextNotifications: 'Уведомления об использовании контекста',
+        contextNotificationsEnabled: 'Уведомлять при 80% и 95%',
+        contextNotificationsDisabled: 'Уведомления об использовании контекста отключены',
     },
 
     errors: {
@@ -335,6 +342,7 @@ export const ru: TranslationStructure = {
         navigatingToReply: 'Переход к сессии',
         sessionArchived: 'Сессия архивирована',
         sessionDeleted: 'Сессия удалена',
+        archiveUndone: 'Архивация отменена',
     },
 
     sessionInfo: {
@@ -416,6 +424,12 @@ export const ru: TranslationStructure = {
             response: 'Ответ',
             inputOutput: ({ input, output }: { input: string; output: string }) => `Вход: ${input} / Выход: ${output}`,
             andMore: ({ count }: { count: number }) => `+${count} ещё...`,
+        },
+        contextHistory: {
+            sectionTitle: 'История контекста',
+            notEnoughData: 'Недостаточно данных для отображения истории',
+            currentUsage: ({ tokens }: { tokens: string }) => `Текущее: ${tokens} токенов`,
+            dataPoints: ({ count }: { count: number }) => `${count} точек данных`,
         },
     },
 

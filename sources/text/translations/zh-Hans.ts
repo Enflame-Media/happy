@@ -59,6 +59,7 @@ export const zhHans: TranslationStructure = {
         loading: '加载中...',
         retry: '重试',
         on: '在',
+        undo: '撤销',
     },
 
     profile: {
@@ -198,6 +199,12 @@ export const zhHans: TranslationStructure = {
         markdownCopyV2Subtitle: '长按打开复制模态框',
         hideInactiveSessions: '隐藏非活跃会话',
         hideInactiveSessionsSubtitle: '仅在列表中显示活跃的聊天',
+        // Notifications section
+        notifications: '通知',
+        notificationsDescription: '配置会话提醒方式。',
+        contextNotifications: '上下文使用提醒',
+        contextNotificationsEnabled: '在80%和95%时通知',
+        contextNotificationsDisabled: '无上下文使用提醒',
     },
 
     errors: {
@@ -373,6 +380,7 @@ export const zhHans: TranslationStructure = {
         navigatingToReply: '正在导航到会话',
         sessionArchived: '会话已归档',
         sessionDeleted: '会话已删除',
+        archiveUndone: '归档已取消',
     },
 
     sessionInfo: {
@@ -454,6 +462,12 @@ export const zhHans: TranslationStructure = {
             response: '回复',
             inputOutput: ({ input, output }: { input: string; output: string }) => `输入: ${input} / 输出: ${output}`,
             andMore: ({ count }: { count: number }) => `+${count} 更多...`,
+        },
+        contextHistory: {
+            sectionTitle: '上下文历史',
+            notEnoughData: '数据不足，无法显示历史记录',
+            currentUsage: ({ tokens }: { tokens: string }) => `当前: ${tokens} 令牌`,
+            dataPoints: ({ count }: { count: number }) => `${count} 个数据点`,
         },
 
     },

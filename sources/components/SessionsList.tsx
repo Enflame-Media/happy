@@ -583,9 +583,13 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
 
                         {/* Status indicators on the right side - animated visibility */}
                         <Animated.View style={[styles.statusIndicators, indicatorsAnimatedStyle]}>
-                            {/* Context usage indicator */}
+                            {/* Context usage indicator with sparkline (HAP-344) */}
                             {session.latestUsage?.contextSize != null && session.latestUsage.contextSize > 0 && (
-                                <ContextMeter contextSize={session.latestUsage.contextSize} />
+                                <ContextMeter
+                                    contextSize={session.latestUsage.contextSize}
+                                    usageHistory={session.usageHistory}
+                                    showSparkline={true}
+                                />
                             )}
                         </Animated.View>
                     </View>

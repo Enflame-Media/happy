@@ -22,6 +22,7 @@ import { useHappyAction } from '@/hooks/useHappyAction';
 import { HappyError } from '@/utils/errors';
 import { SessionCostDisplay } from '@/components/usage/SessionCostDisplay';
 import { ContextBreakdown } from '@/components/usage/ContextBreakdown';
+import { ContextHistoryChart } from '@/components/usage/ContextHistoryChart';
 
 // Animated status dot component
 function StatusDot({ color, isPulsing, size = 8 }: { color: string; isPulsing?: boolean; size?: number }) {
@@ -300,6 +301,18 @@ function SessionInfoContent({ session }: { session: Session }) {
                         <ContextBreakdown sessionId={session.id} />
                     </View>
                 </ItemGroup>
+
+                {/* Context History Chart (HAP-344) */}
+                {session.usageHistory && session.usageHistory.length > 0 && (
+                    <ItemGroup title={t('sessionInfo.contextHistory.sectionTitle')}>
+                        <View style={{ marginHorizontal: 16, marginVertical: 8 }}>
+                            <ContextHistoryChart
+                                history={session.usageHistory}
+                                currentContextSize={session.latestUsage?.contextSize}
+                            />
+                        </View>
+                    </ItemGroup>
+                )}
 
                 {/* Quick Actions */}
                 <ItemGroup title={t('sessionInfo.quickActions')}>

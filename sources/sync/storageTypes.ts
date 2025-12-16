@@ -4,6 +4,27 @@ import { z } from "zod";
 // Agent states
 //
 
+/**
+ * Historical usage snapshot for context trend visualization (HAP-344)
+ * Stores periodic snapshots of context usage for sparkline display
+ */
+export interface UsageHistoryEntry {
+    contextSize: number;    // Context size in tokens at this point
+    timestamp: number;      // When this snapshot was taken
+}
+
+/**
+ * Maximum number of usage history entries to store per session
+ * Keeps storage bounded while providing enough points for visualization
+ */
+export const MAX_USAGE_HISTORY_SIZE = 50;
+
+/**
+ * Minimum context change (in tokens) required to record a new history entry
+ * Prevents recording too many small changes
+ */
+export const MIN_CONTEXT_CHANGE_FOR_HISTORY = 1000;
+
 export const MetadataSchema = z.object({
     path: z.string(),
     host: z.string(),
@@ -91,6 +112,9 @@ export interface Session {
         };
         model?: string;  // Model name (e.g., 'claude-opus-4-20250514')
     } | null;
+    // Historical context usage snapshots for trend visualization (HAP-344)
+    // Limited to MAX_USAGE_HISTORY_SIZE entries, sampled when context changes significantly
+    usageHistory?: UsageHistoryEntry[] | null;
 }
 
 export interface DecryptedMessage {

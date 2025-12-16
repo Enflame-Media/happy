@@ -412,9 +412,13 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
 
                     {/* Status indicators on the right side */}
                     <View style={styles.statusIndicators}>
-                        {/* Context usage indicator */}
+                        {/* Context usage indicator with sparkline (HAP-344) */}
                         {session.latestUsage?.contextSize != null && session.latestUsage.contextSize > 0 && (
-                            <ContextMeter contextSize={session.latestUsage.contextSize} />
+                            <ContextMeter
+                                contextSize={session.latestUsage.contextSize}
+                                usageHistory={session.usageHistory}
+                                showSparkline={true}
+                            />
                         )}
 
                         {/* Draft status indicator */}

@@ -113,7 +113,7 @@
 import { Message, ToolCall } from "../typesMessage";
 import { AgentEvent, NormalizedMessage, UsageData } from "../typesRaw";
 import { createTracer, traceMessages, TracerState } from "./reducerTracer";
-import { AgentState } from "../storageTypes";
+import { AgentState, UsageHistoryEntry, MAX_USAGE_HISTORY_SIZE, MIN_CONTEXT_CHANGE_FOR_HISTORY } from "../storageTypes";
 import { MessageMeta } from "../typesMessageMeta";
 import { parseMessageAsEvent } from "./messageToEvent";
 
@@ -167,6 +167,8 @@ export type ReducerState = {
         contextSize: number;
         timestamp: number;
     };
+    // Historical context usage for trend visualization (HAP-344)
+    usageHistory: UsageHistoryEntry[];
 };
 
 export function createReducer(): ReducerState {
@@ -178,7 +180,8 @@ export function createReducer(): ReducerState {
         localIds: new Map(),
         messageIds: new Map(),
         sidechains: new Map(),
-        tracerState: createTracer()
+        tracerState: createTracer(),
+        usageHistory: []
     }
 };
 
@@ -268,6 +271,8 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                 contextSize: 0,
                 timestamp: msg.createdAt  // Use message timestamp to avoid blocking older usage data
             };
+            // Clear usage history on full reset (HAP-344)
+            state.usageHistory = [];
             // Don't continue - let the event be processed normally to create a message
         }
 
@@ -282,6 +287,11 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                 contextSize: 0,
                 timestamp: msg.createdAt  // Use message timestamp to avoid blocking older usage data
             };
+            // Record a zero point in history after compaction to show the drop (HAP-344)
+            state.usageHistory.push({
+                contextSize: 0,
+                timestamp: msg.createdAt
+            });
             // Don't continue - let the event be processed normally to create a message
         }
 
@@ -1087,16 +1097,39 @@ function allocateId() {
 }
 
 function processUsageData(state: ReducerState, usage: UsageData, timestamp: number) {
+    const contextSize = (usage.cache_creation_input_tokens || 0) + (usage.cache_read_input_tokens || 0) + usage.input_tokens;
+
     // Only update if this is newer than the current latest usage
     if (!state.latestUsage || timestamp > state.latestUsage.timestamp) {
+        const previousContextSize = state.latestUsage?.contextSize ?? 0;
+
         state.latestUsage = {
             inputTokens: usage.input_tokens,
             outputTokens: usage.output_tokens,
             cacheCreation: usage.cache_creation_input_tokens || 0,
             cacheRead: usage.cache_read_input_tokens || 0,
-            contextSize: (usage.cache_creation_input_tokens || 0) + (usage.cache_read_input_tokens || 0) + usage.input_tokens,
+            contextSize,
             timestamp: timestamp
         };
+
+        // Record usage history (HAP-344): Only record if context changed significantly
+        // This prevents recording too many small changes while capturing meaningful growth
+        const contextChange = Math.abs(contextSize - previousContextSize);
+        const isFirstEntry = state.usageHistory.length === 0;
+        const shouldRecord = isFirstEntry || contextChange >= MIN_CONTEXT_CHANGE_FOR_HISTORY;
+
+        if (shouldRecord && contextSize > 0) {
+            // Add new entry
+            state.usageHistory.push({
+                contextSize,
+                timestamp
+            });
+
+            // Limit history size by removing oldest entries
+            while (state.usageHistory.length > MAX_USAGE_HISTORY_SIZE) {
+                state.usageHistory.shift();
+            }
+        }
     }
 }
 

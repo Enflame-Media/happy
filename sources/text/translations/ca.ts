@@ -57,6 +57,7 @@ export const ca: TranslationStructure = {
         loading: 'Carregant...',
         retry: 'Torna-ho a provar',
         on: 'a',
+        undo: 'Desfer',
     },
 
     profile: {
@@ -196,6 +197,12 @@ export const ca: TranslationStructure = {
         markdownCopyV2Subtitle: 'Pulsació llarga obre modal de còpia',
         hideInactiveSessions: 'Amaga les sessions inactives',
         hideInactiveSessionsSubtitle: 'Mostra només els xats actius a la llista',
+        // Notifications section
+        notifications: 'Notificacions',
+        notificationsDescription: 'Configura com reps alertes sobre les teves sessions.',
+        contextNotifications: "Alertes d'ús del context",
+        contextNotificationsEnabled: 'Notifica al 80% i 95%',
+        contextNotificationsDisabled: "Sense alertes d'ús del context",
     },
 
     errors: {
@@ -371,6 +378,7 @@ export const ca: TranslationStructure = {
         navigatingToReply: 'Navegant a la sessió',
         sessionArchived: 'Sessió arxivada',
         sessionDeleted: 'Sessió eliminada',
+        archiveUndone: 'Arxiu cancel·lat',
     },
 
     sessionInfo: {
@@ -452,6 +460,12 @@ export const ca: TranslationStructure = {
             response: 'Resposta',
             inputOutput: ({ input, output }: { input: string; output: string }) => `Ent: ${input} / Sor: ${output}`,
             andMore: ({ count }: { count: number }) => `+${count} més...`,
+        },
+        contextHistory: {
+            sectionTitle: 'Historial del context',
+            notEnoughData: 'No hi ha prou dades per mostrar l\'historial',
+            currentUsage: ({ tokens }: { tokens: string }) => `Actual: ${tokens} tokens`,
+            dataPoints: ({ count }: { count: number }) => `${count} punts de dades`,
         },
 
     },

@@ -13,11 +13,33 @@ function FeaturesSettingsScreen() {
     const [commandPaletteEnabled, setCommandPaletteEnabled] = useLocalSettingMutable('commandPaletteEnabled');
     const [markdownCopyV2, setMarkdownCopyV2] = useLocalSettingMutable('markdownCopyV2');
     const [hideInactiveSessions, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
-    
+    const [contextNotificationsEnabled, setContextNotificationsEnabled] = useSettingMutable('contextNotificationsEnabled');
+
     return (
         <ItemList style={{ paddingTop: 0 }}>
+            {/* Notifications - only show on mobile platforms */}
+            {Platform.OS !== 'web' && (
+                <ItemGroup
+                    title={t('settingsFeatures.notifications')}
+                    footer={t('settingsFeatures.notificationsDescription')}
+                >
+                    <Item
+                        title={t('settingsFeatures.contextNotifications')}
+                        subtitle={contextNotificationsEnabled ? t('settingsFeatures.contextNotificationsEnabled') : t('settingsFeatures.contextNotificationsDisabled')}
+                        icon={<Ionicons name="notifications-outline" size={29} color="#FF3B30" />}
+                        rightElement={
+                            <Switch
+                                value={contextNotificationsEnabled}
+                                onValueChange={setContextNotificationsEnabled}
+                            />
+                        }
+                        showChevron={false}
+                    />
+                </ItemGroup>
+            )}
+
             {/* Experimental Features */}
-            <ItemGroup 
+            <ItemGroup
                 title={t('settingsFeatures.experiments')}
                 footer={t('settingsFeatures.experimentsDescription')}
             >
@@ -61,7 +83,7 @@ function FeaturesSettingsScreen() {
 
             {/* Web-only Features */}
             {Platform.OS === 'web' && (
-                <ItemGroup 
+                <ItemGroup
                     title={t('settingsFeatures.webFeatures')}
                     footer={t('settingsFeatures.webFeaturesDescription')}
                 >

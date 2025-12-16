@@ -57,6 +57,7 @@ export const en = {
         loading: 'Loading...',
         retry: 'Retry',
         on: 'on',
+        undo: 'Undo',
     },
 
     profile: {
@@ -196,6 +197,12 @@ export const en = {
         markdownCopyV2Subtitle: 'Long press opens copy modal',
         hideInactiveSessions: 'Hide inactive sessions',
         hideInactiveSessionsSubtitle: 'Show only active chats in your list',
+        // Notifications section
+        notifications: 'Notifications',
+        notificationsDescription: 'Configure how you receive alerts about your sessions.',
+        contextNotifications: 'Context Usage Alerts',
+        contextNotificationsEnabled: 'Get notified at 80% and 95%',
+        contextNotificationsDisabled: 'No context usage alerts',
     },
 
     errors: {
@@ -431,6 +438,13 @@ export const en = {
             inputOutput: ({ input, output }: { input: string; output: string }) => `In: ${input} / Out: ${output}`,
             andMore: ({ count }: { count: number }) => `+${count} more...`,
         },
+        // Context usage history chart (HAP-344)
+        contextHistory: {
+            sectionTitle: 'Context History',
+            notEnoughData: 'Not enough data to show history',
+            currentUsage: ({ tokens }: { tokens: string }) => `Current: ${tokens} tokens`,
+            dataPoints: ({ count }: { count: number }) => `${count} data points`,
+        },
 
     },
 
@@ -454,6 +468,7 @@ export const en = {
         navigatingToReply: 'Navigating to session',
         sessionArchived: 'Session archived',
         sessionDeleted: 'Session deleted',
+        archiveUndone: 'Archive cancelled',
     },
 
     components: {

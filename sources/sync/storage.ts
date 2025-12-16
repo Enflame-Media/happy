@@ -423,11 +423,14 @@ export const storage = create<StorageState>()((set, get) => {
                         isLoaded: existingSessionMessages.isLoaded
                     };
 
-                    // IMPORTANT: Copy latestUsage from reducerState to Session for immediate availability
+                    // IMPORTANT: Copy latestUsage and usageHistory from reducerState to Session for immediate availability
                     if (existingSessionMessages.reducerState.latestUsage) {
                         mergedSessions[session.id] = {
                             ...mergedSessions[session.id],
-                            latestUsage: { ...existingSessionMessages.reducerState.latestUsage }
+                            latestUsage: { ...existingSessionMessages.reducerState.latestUsage },
+                            usageHistory: existingSessionMessages.reducerState.usageHistory.length > 0
+                                ? [...existingSessionMessages.reducerState.usageHistory]
+                                : mergedSessions[session.id].usageHistory
                         };
                     }
                 }
@@ -521,7 +524,11 @@ export const storage = create<StorageState>()((set, get) => {
                             // Copy latestUsage from reducerState to make it immediately available
                             latestUsage: existingSession.reducerState.latestUsage ? {
                                 ...existingSession.reducerState.latestUsage
-                            } : session.latestUsage
+                            } : session.latestUsage,
+                            // Copy usageHistory for trend visualization (HAP-344)
+                            usageHistory: existingSession.reducerState.usageHistory.length > 0
+                                ? [...existingSession.reducerState.usageHistory]
+                                : session.usageHistory
                         }
                     };
                 }
@@ -573,14 +580,17 @@ export const storage = create<StorageState>()((set, get) => {
                         .sort((a, b) => b.createdAt - a.createdAt);
                 }
 
-                // Extract latestUsage from reducerState if available and update session
+                // Extract latestUsage and usageHistory from reducerState if available and update session
                 let updatedSessions = state.sessions;
                 if (session && reducerState.latestUsage) {
                     updatedSessions = {
                         ...state.sessions,
                         [sessionId]: {
                             ...session,
-                            latestUsage: { ...reducerState.latestUsage }
+                            latestUsage: { ...reducerState.latestUsage },
+                            usageHistory: reducerState.usageHistory.length > 0
+                                ? [...reducerState.usageHistory]
+                                : session.usageHistory
                         }
                     };
                 }
