@@ -57,6 +57,8 @@ export interface StatusDisplayProps {
     contextWarning: { text: string; color: string } | null;
     permissionMode?: PermissionMode;
     onPermissionModeChange?: (mode: PermissionMode) => void;
+    modelMode?: ModelMode;
+    onModelModeChange?: (mode: ModelMode) => void;
     isCodex: boolean;
 }
 

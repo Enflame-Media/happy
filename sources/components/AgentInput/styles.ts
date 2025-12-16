@@ -276,9 +276,9 @@ export const stylesheet = StyleSheet.create((theme) => ({
         flex: 1,
     },
     statusBarRight: {
-        flexDirection: 'column',
-        alignItems: 'flex-end',
-        minWidth: 150,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     // Model section title
     modelSectionTitle: {

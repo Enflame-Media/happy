@@ -2,6 +2,7 @@ import * as React from 'react';
 import { View, Text } from 'react-native';
 import { StatusDot } from '../StatusDot';
 import { PermissionModeSelector } from '../PermissionModeSelector';
+import { ModelModeSelector } from '../ModelModeSelector';
 import { Typography } from '@/constants/Typography';
 import { StatusDisplayProps } from './types';
 import { stylesheet } from './styles';
@@ -16,12 +17,14 @@ export const StatusDisplay = React.memo(function StatusDisplay({
     contextWarning,
     permissionMode,
     onPermissionModeChange,
+    modelMode,
+    onModelModeChange,
     isCodex,
 }: StatusDisplayProps) {
     const styles = stylesheet;
 
     // Don't render if nothing to show
-    if (!connectionStatus && !contextWarning && !permissionMode) {
+    if (!connectionStatus && !contextWarning && !permissionMode && !modelMode) {
         return null;
     }
 
@@ -57,6 +60,13 @@ export const StatusDisplay = React.memo(function StatusDisplay({
                 )}
             </View>
             <View style={styles.statusBarRight}>
+                {modelMode && onModelModeChange && (
+                    <ModelModeSelector
+                        mode={modelMode}
+                        onModeChange={onModelModeChange}
+                        isCodex={isCodex}
+                    />
+                )}
                 {permissionMode && onPermissionModeChange && (
                     <PermissionModeSelector
                         mode={permissionMode}
