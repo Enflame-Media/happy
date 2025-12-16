@@ -5,13 +5,23 @@ import { useSessionGitStatus, useSessionProjectGitStatus } from '@/sync/storage'
 import { GitStatus } from '@/sync/storageTypes';
 import { useUnistyles } from 'react-native-unistyles';
 
-// Custom hook to check if git status should be shown (always true if git repo exists)
+// Custom hook to check if git status should be shown (only when there are actual changes)
 export function useHasMeaningfulGitStatus(sessionId: string): boolean {
     // Use project git status first, fallback to session git status for backward compatibility
     const projectGitStatus = useSessionProjectGitStatus(sessionId);
     const sessionGitStatus = useSessionGitStatus(sessionId);
     const gitStatus = projectGitStatus || sessionGitStatus;
-    return gitStatus ? gitStatus.lastUpdatedAt > 0 : false;
+
+    if (!gitStatus || gitStatus.lastUpdatedAt === 0) {
+        return false;
+    }
+
+    // Only show when there are actual uncommitted changes
+    return gitStatus.isDirty && (
+        (gitStatus.modifiedCount + gitStatus.untrackedCount + gitStatus.stagedCount) > 0 ||
+        gitStatus.unstagedLinesAdded > 0 ||
+        gitStatus.unstagedLinesRemoved > 0
+    );
 }
 
 interface GitStatusBadgeProps {
