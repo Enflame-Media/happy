@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { View, Text, Animated } from 'react-native';
+import React, { useCallback, useRef, useEffect } from 'react';
+import { View, Text, Animated, AccessibilityInfo } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Typography } from '@/constants/Typography';
@@ -11,6 +11,7 @@ import { useSession, useIsDataReady } from '@/sync/storage';
 import { getSessionName, useSessionStatus, formatOSPlatform, formatPathRelativeToHome, getSessionAvatarId } from '@/utils/sessionUtils';
 import * as Clipboard from 'expo-clipboard';
 import { Modal } from '@/modal';
+import { Toast } from '@/toast';
 import { sessionKill, sessionDelete, sessionClearContext, sessionCompactContext } from '@/sync/ops';
 import { useUnistyles } from 'react-native-unistyles';
 import { layout } from '@/components/layout';
@@ -23,6 +24,9 @@ import { HappyError } from '@/utils/errors';
 import { SessionCostDisplay } from '@/components/usage/SessionCostDisplay';
 import { ContextBreakdown } from '@/components/usage/ContextBreakdown';
 import { ContextHistoryChart } from '@/components/usage/ContextHistoryChart';
+import { hapticsLight } from '@/components/haptics';
+
+const ARCHIVE_UNDO_DURATION = 5000; // 5 seconds to undo
 
 // Animated status dot component
 function StatusDot({ color, isPulsing, size = 8 }: { color: string; isPulsing?: boolean; size?: number }) {
@@ -69,9 +73,21 @@ function SessionInfoContent({ session }: { session: Session }) {
     const devModeEnabled = __DEV__;
     const sessionName = getSessionName(session);
     const sessionStatus = useSessionStatus(session);
-    
+
     // Check if CLI version is outdated
     const isCliOutdated = session.metadata?.version && !isVersionSupported(session.metadata.version, MINIMUM_CLI_VERSION);
+
+    // Ref to track pending archive timeout for undo functionality
+    const pendingArchiveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Cleanup pending archive on unmount
+    useEffect(() => {
+        return () => {
+            if (pendingArchiveRef.current) {
+                clearTimeout(pendingArchiveRef.current);
+            }
+        };
+    }, []);
 
     const handleCopySessionId = useCallback(async () => {
         if (!session) return;
@@ -94,30 +110,52 @@ function SessionInfoContent({ session }: { session: Session }) {
     }, [session]);
 
     // Use HappyAction for archiving - it handles errors automatically
+    // Note: Navigation happens after timeout, not inside performArchive
     const [_archivingSession, performArchive] = useHappyAction(async () => {
         const result = await sessionKill(session.id);
         if (!result.success) {
             throw new HappyError(result.message || t('sessionInfo.failedToArchiveSession'), false);
         }
-        // Success - navigate back
-        router.back();
-        router.back();
     });
 
+    // Handle undo action - cancels the pending archive
+    const handleUndoArchive = useCallback(() => {
+        if (pendingArchiveRef.current) {
+            clearTimeout(pendingArchiveRef.current);
+            pendingArchiveRef.current = null;
+        }
+        hapticsLight();
+        AccessibilityInfo.announceForAccessibility(t('swipeActions.archiveUndone'));
+    }, []);
+
+    // Archive with undo toast pattern - navigation happens after archive executes
     const handleArchiveSession = useCallback(() => {
-        Modal.alert(
-            t('sessionInfo.archiveSession'),
-            t('sessionInfo.archiveSessionConfirm'),
-            [
-                { text: t('common.cancel'), style: 'cancel' },
-                {
-                    text: t('sessionInfo.archiveSession'),
-                    style: 'destructive',
-                    onPress: performArchive
-                }
-            ]
-        );
-    }, [performArchive]);
+        hapticsLight();
+
+        // Clear any existing pending archive
+        if (pendingArchiveRef.current) {
+            clearTimeout(pendingArchiveRef.current);
+        }
+
+        // Show undo toast
+        Toast.show({
+            message: t('swipeActions.sessionArchived'),
+            duration: ARCHIVE_UNDO_DURATION,
+            action: {
+                label: t('common.undo'),
+                onPress: handleUndoArchive,
+            },
+        });
+
+        // Set pending archive - will execute after toast duration if not cancelled
+        pendingArchiveRef.current = setTimeout(() => {
+            pendingArchiveRef.current = null;
+            performArchive();
+            // Navigate back after archive executes
+            router.back();
+            router.back();
+        }, ARCHIVE_UNDO_DURATION);
+    }, [handleUndoArchive, performArchive, router]);
 
     // Use HappyAction for deletion - it handles errors automatically
     const [_deletingSession, performDelete] = useHappyAction(async () => {

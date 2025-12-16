@@ -12,19 +12,23 @@
  * Uses native ActionSheetIOS on iOS and Modal.alert on Android/Web.
  * Triggers haptic feedback on long-press.
  */
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
+import { AccessibilityInfo } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { Session } from '@/sync/storageTypes';
 import { sessionKill, sessionDelete } from '@/sync/ops';
 import { storage } from '@/sync/storage';
 import { Modal } from '@/modal';
+import { Toast } from '@/toast';
 import { t } from '@/text';
 import { showActionSheet, ActionSheetOption } from '@/utils/ActionSheet';
 import { hapticsLight } from '@/components/haptics';
 import { useSessionStatus } from '@/utils/sessionUtils';
 import { HappyError } from '@/utils/errors';
 import { useHappyAction } from './useHappyAction';
+
+const ARCHIVE_UNDO_DURATION = 5000; // 5 seconds to undo
 
 /**
  * Hook that returns a function to show context menu for a session
@@ -34,6 +38,9 @@ import { useHappyAction } from './useHappyAction';
 export function useSessionContextMenu(session: Session) {
     const router = useRouter();
     const sessionStatus = useSessionStatus(session);
+
+    // Ref to track pending archive timeout for undo functionality
+    const pendingArchiveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Archive action with error handling
     const [_archiving, performArchive] = useHappyAction(async () => {
@@ -50,6 +57,25 @@ export function useSessionContextMenu(session: Session) {
             throw new HappyError(result.message || t('sessionInfo.failedToDeleteSession'), false);
         }
     });
+
+    // Cleanup pending archive on unmount
+    useEffect(() => {
+        return () => {
+            if (pendingArchiveRef.current) {
+                clearTimeout(pendingArchiveRef.current);
+            }
+        };
+    }, []);
+
+    // Handle undo action - cancels the pending archive
+    const handleUndoArchive = useCallback(() => {
+        if (pendingArchiveRef.current) {
+            clearTimeout(pendingArchiveRef.current);
+            pendingArchiveRef.current = null;
+        }
+        hapticsLight();
+        AccessibilityInfo.announceForAccessibility(t('swipeActions.archiveUndone'));
+    }, []);
 
     const showContextMenu = useCallback(() => {
         // Trigger haptic feedback
@@ -176,24 +202,34 @@ export function useSessionContextMenu(session: Session) {
             });
         }
 
-        // Archive session - only for connected sessions
+        // Archive session - only for connected sessions (uses undo toast pattern)
         if (sessionStatus.isConnected) {
             options.push({
                 label: t('sessionInfo.archiveSession'),
                 destructive: true,
                 onPress: () => {
-                    Modal.alert(
-                        t('sessionInfo.archiveSession'),
-                        t('sessionInfo.archiveSessionConfirm'),
-                        [
-                            { text: t('common.cancel'), style: 'cancel' },
-                            {
-                                text: t('sessionInfo.archiveSession'),
-                                style: 'destructive',
-                                onPress: performArchive,
-                            },
-                        ]
-                    );
+                    hapticsLight();
+
+                    // Clear any existing pending archive
+                    if (pendingArchiveRef.current) {
+                        clearTimeout(pendingArchiveRef.current);
+                    }
+
+                    // Show undo toast
+                    Toast.show({
+                        message: t('swipeActions.sessionArchived'),
+                        duration: ARCHIVE_UNDO_DURATION,
+                        action: {
+                            label: t('common.undo'),
+                            onPress: handleUndoArchive,
+                        },
+                    });
+
+                    // Set pending archive - will execute after toast duration if not cancelled
+                    pendingArchiveRef.current = setTimeout(() => {
+                        pendingArchiveRef.current = null;
+                        performArchive();
+                    }, ARCHIVE_UNDO_DURATION);
                 },
             });
         }
@@ -223,7 +259,7 @@ export function useSessionContextMenu(session: Session) {
         showActionSheet({
             options,
         });
-    }, [session, sessionStatus, router, performArchive, performDelete]);
+    }, [session, sessionStatus, router, performArchive, performDelete, handleUndoArchive]);
 
     return { showContextMenu };
 }
