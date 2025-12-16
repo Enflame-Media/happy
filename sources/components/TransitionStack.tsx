@@ -1,7 +1,7 @@
 import "react-native-reanimated";
-import { createNativeStackNavigator } from "react-native-screen-transitions";
+import { createNativeStackNavigator } from "react-native-screen-transitions/native-stack";
 import type { ParamListBase, StackNavigationState } from "@react-navigation/native";
-import type { NativeStackNavigationEventMap, NativeStackNavigationOptions } from "react-native-screen-transitions/lib/typescript/types/navigator";
+import type { NativeStackNavigationEventMap, NativeStackNavigationOptions } from "react-native-screen-transitions/native-stack";
 import { withLayoutContext } from "expo-router";
 
 const TransitionableStack = createNativeStackNavigator();
