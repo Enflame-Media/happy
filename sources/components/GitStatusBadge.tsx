@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import Octicons from '@expo/vector-icons/Octicons';
 import { useSessionGitStatus, useSessionProjectGitStatus } from '@/sync/storage';
-import { GitStatus } from '@/sync/storageTypes';
 import { useUnistyles } from 'react-native-unistyles';
 
 // Custom hook to check if git status should be shown (only when there are actual changes)
@@ -81,18 +80,5 @@ export function GitStatusBadge({ sessionId }: GitStatusBadgeProps) {
                 </View>
             )}
         </View>
-    );
-}
-
-function _getTotalChangedFiles(status: GitStatus): number {
-    return status.modifiedCount + status.untrackedCount + status.stagedCount;
-}
-
-function _hasMeaningfulChanges(status: GitStatus): boolean {
-    // Must have been loaded (lastUpdatedAt > 0) and be dirty and have either file changes or line changes
-    return status.lastUpdatedAt > 0 && status.isDirty && (
-        _getTotalChangedFiles(status) > 0 ||
-        status.unstagedLinesAdded > 0 ||
-        status.unstagedLinesRemoved > 0
     );
 }
