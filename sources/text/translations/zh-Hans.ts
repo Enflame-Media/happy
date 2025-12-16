@@ -460,12 +460,29 @@ export const zhHans: TranslationStructure = {
 
     components: {
         emptyMainScreen: {
-            // Used by EmptyMainScreen component
+            // Used by EmptyMainScreen component (phone empty state with onboarding)
+            welcomeTitle: '欢迎使用 Happy Coder！',
+            welcomeSubtitle: '从手机端到端加密控制 Claude Code',
             readyToCode: '准备开始编程？',
             installCli: '安装 Happy CLI',
             runIt: '运行它',
             scanQrCode: '扫描二维码',
             openCamera: '打开相机',
+            scanQrToConnect: '扫描二维码连接',
+            featureEncryption: '端到端加密',
+            featureRemoteControl: '随时随地控制',
+            featureRealtime: '实时同步',
+        },
+        emptySessionsTablet: {
+            // Used by EmptySessionsTablet component (tablet empty state)
+            welcomeTitle: '欢迎使用 Happy Coder！',
+            welcomeDescription: '连接您的终端以开始使用。在电脑上运行 happy-cli 并扫描二维码。',
+            noActiveSessions: '没有活跃的会话',
+            startSessionOnMachine: '在任何已连接的机器上启动新会话。',
+            openTerminalToStart: '在电脑上打开终端以开始会话。',
+            startNewSession: '开始新会话',
+            featureEncrypted: '已加密',
+            featureRealtime: '实时',
         },
         errorBoundary: {
             // Used by ErrorBoundary component

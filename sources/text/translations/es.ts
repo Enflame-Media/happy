@@ -458,12 +458,29 @@ export const es: TranslationStructure = {
 
     components: {
         emptyMainScreen: {
-            // Used by EmptyMainScreen component
+            // Used by EmptyMainScreen component (phone empty state with onboarding)
+            welcomeTitle: '¡Bienvenido a Happy Coder!',
+            welcomeSubtitle: 'Controla Claude Code desde tu teléfono con cifrado de extremo a extremo',
             readyToCode: '¿Listo para programar?',
             installCli: 'Instale el Happy CLI',
             runIt: 'Ejecútelo',
             scanQrCode: 'Escanee el código QR',
             openCamera: 'Abrir cámara',
+            scanQrToConnect: 'Escanear QR para conectar',
+            featureEncryption: 'Cifrado de extremo a extremo',
+            featureRemoteControl: 'Control desde cualquier lugar',
+            featureRealtime: 'Sincronización en tiempo real',
+        },
+        emptySessionsTablet: {
+            // Used by EmptySessionsTablet component (tablet empty state)
+            welcomeTitle: '¡Bienvenido a Happy Coder!',
+            welcomeDescription: 'Conecta tu terminal para comenzar. Ejecuta happy-cli en tu computadora y escanea el código QR.',
+            noActiveSessions: 'Sin sesiones activas',
+            startSessionOnMachine: 'Inicia una nueva sesión en cualquiera de tus máquinas conectadas.',
+            openTerminalToStart: 'Abre una terminal en tu computadora para iniciar sesión.',
+            startNewSession: 'Iniciar nueva sesión',
+            featureEncrypted: 'Cifrado',
+            featureRealtime: 'Tiempo real',
         },
         errorBoundary: {
             // Used by ErrorBoundary component

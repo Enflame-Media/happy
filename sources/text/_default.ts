@@ -458,12 +458,29 @@ export const en = {
 
     components: {
         emptyMainScreen: {
-            // Used by EmptyMainScreen component
+            // Used by EmptyMainScreen component (phone empty state with onboarding)
+            welcomeTitle: 'Welcome to Happy Coder!',
+            welcomeSubtitle: 'Control Claude Code from your phone with end-to-end encryption',
             readyToCode: 'Ready to code?',
             installCli: 'Install the Happy CLI',
             runIt: 'Run it',
             scanQrCode: 'Scan the QR code',
             openCamera: 'Open Camera',
+            scanQrToConnect: 'Scan QR to Connect',
+            featureEncryption: 'End-to-end encrypted',
+            featureRemoteControl: 'Control from anywhere',
+            featureRealtime: 'Real-time sync',
+        },
+        emptySessionsTablet: {
+            // Used by EmptySessionsTablet component (tablet empty state)
+            welcomeTitle: 'Welcome to Happy Coder!',
+            welcomeDescription: 'Connect your terminal to get started. Run happy-cli on your computer and scan the QR code.',
+            noActiveSessions: 'No active sessions',
+            startSessionOnMachine: 'Start a new session on any of your connected machines.',
+            openTerminalToStart: 'Open a new terminal on your computer to start session.',
+            startNewSession: 'Start New Session',
+            featureEncrypted: 'Encrypted',
+            featureRealtime: 'Real-time',
         },
         errorBoundary: {
             // Used by ErrorBoundary component

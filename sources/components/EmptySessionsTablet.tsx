@@ -6,6 +6,8 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useAllMachines } from '@/sync/storage';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { useRouter } from 'expo-router';
+import { t } from '@/text';
+import { OnboardingIllustration } from '@/components/OnboardingIllustration';
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -14,21 +16,26 @@ const stylesheet = StyleSheet.create((theme) => ({
         alignItems: 'center',
         paddingHorizontal: 48,
     },
+    illustrationContainer: {
+        marginBottom: 24,
+    },
     iconContainer: {
         marginBottom: 24,
     },
     titleText: {
-        fontSize: 20,
-        color: theme.colors.textSecondary,
+        fontSize: 22,
+        color: theme.colors.text,
         textAlign: 'center',
         marginBottom: 8,
-        ...Typography.default('regular'),
+        ...Typography.default('semiBold'),
     },
     descriptionText: {
         fontSize: 16,
         color: theme.colors.textSecondary,
         textAlign: 'center',
         marginBottom: 24,
+        lineHeight: 24,
+        maxWidth: 320,
         ...Typography.default(),
     },
     button: {
@@ -52,6 +59,23 @@ const stylesheet = StyleSheet.create((theme) => ({
         fontWeight: '600',
         ...Typography.default('semiBold'),
     },
+    featuresRow: {
+        flexDirection: 'row',
+        marginTop: 32,
+        gap: 24,
+    },
+    featureItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    featureIcon: {
+        marginRight: 8,
+    },
+    featureText: {
+        ...Typography.default(),
+        fontSize: 13,
+        color: theme.colors.textSecondary,
+    },
 }));
 
 export function EmptySessionsTablet() {
@@ -59,32 +83,78 @@ export function EmptySessionsTablet() {
     const styles = stylesheet;
     const router = useRouter();
     const machines = useAllMachines();
-    
+
     const hasOnlineMachines = React.useMemo(() => {
         return machines.some(machine => isMachineOnline(machine));
     }, [machines]);
-    
+
+    const hasMachines = machines.length > 0;
+
     const handleStartNewSession = () => {
         router.push('/new');
     };
-    
+
+    // Show onboarding-style view if no machines connected yet
+    if (!hasMachines) {
+        return (
+            <View style={styles.container}>
+                <View style={styles.illustrationContainer}>
+                    <OnboardingIllustration size={140} />
+                </View>
+
+                <Text style={styles.titleText}>
+                    {t('components.emptySessionsTablet.welcomeTitle')}
+                </Text>
+
+                <Text style={styles.descriptionText}>
+                    {t('components.emptySessionsTablet.welcomeDescription')}
+                </Text>
+
+                <View style={styles.featuresRow}>
+                    <View style={styles.featureItem}>
+                        <Ionicons
+                            name="lock-closed"
+                            size={14}
+                            color={theme.colors.status.connected}
+                            style={styles.featureIcon}
+                        />
+                        <Text style={styles.featureText}>
+                            {t('components.emptySessionsTablet.featureEncrypted')}
+                        </Text>
+                    </View>
+                    <View style={styles.featureItem}>
+                        <Ionicons
+                            name="sync"
+                            size={14}
+                            color={theme.colors.status.connected}
+                            style={styles.featureIcon}
+                        />
+                        <Text style={styles.featureText}>
+                            {t('components.emptySessionsTablet.featureRealtime')}
+                        </Text>
+                    </View>
+                </View>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
-            <Ionicons 
-                name="terminal-outline" 
-                size={64} 
+            <Ionicons
+                name="terminal-outline"
+                size={64}
                 color={theme.colors.textSecondary}
                 style={styles.iconContainer}
             />
-            
+
             <Text style={styles.titleText}>
-                No active sessions
+                {t('components.emptySessionsTablet.noActiveSessions')}
             </Text>
-            
+
             {hasOnlineMachines ? (
                 <>
                     <Text style={styles.descriptionText}>
-                        Start a new session on any of your connected machines.
+                        {t('components.emptySessionsTablet.startSessionOnMachine')}
                     </Text>
                     <Pressable
                         style={styles.button}
@@ -97,13 +167,13 @@ export function EmptySessionsTablet() {
                             style={styles.buttonIcon}
                         />
                         <Text style={styles.buttonText}>
-                            Start New Session
+                            {t('components.emptySessionsTablet.startNewSession')}
                         </Text>
                     </Pressable>
                 </>
             ) : (
                 <Text style={styles.descriptionText}>
-                    Open a new terminal on your computer to start session.
+                    {t('components.emptySessionsTablet.openTerminalToStart')}
                 </Text>
             )}
         </View>
