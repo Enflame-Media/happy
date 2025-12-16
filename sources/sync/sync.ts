@@ -2167,6 +2167,14 @@ class Sync {
         for (let s of newActive) {
             if (!wasActive.has(s.id)) {
                 voiceHooks.onSessionOnline(s.id, s.metadata ?? undefined);
+                
+                // HAP-372: Send current contextNotificationsEnabled setting to newly connected session
+                const enabled = storage.getState().settings.contextNotificationsEnabled ?? true;
+                apiSocket.sessionRPC<{ ok: boolean }, { enabled: boolean }>(
+                    s.id,
+                    'setContextNotificationsEnabled',
+                    { enabled }
+                ).catch(() => {}); // Fire and forget - CLI may not support this RPC
             }
         }
     }
