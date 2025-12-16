@@ -436,6 +436,11 @@ export const zhHans: TranslationStructure = {
             scanQrCode: '扫描二维码',
             openCamera: '打开相机',
         },
+        errorBoundary: {
+            // Used by ErrorBoundary component
+            title: '出错了',
+            message: '此部分发生错误。请重试，如果问题仍然存在，请重新启动应用程序。',
+        },
     },
 
     agentInput: {

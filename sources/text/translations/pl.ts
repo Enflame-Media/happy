@@ -444,6 +444,11 @@ export const pl: TranslationStructure = {
             scanQrCode: 'Zeskanuj kod QR',
             openCamera: 'Otwórz kamerę',
         },
+        errorBoundary: {
+            // Used by ErrorBoundary component
+            title: 'Coś poszło nie tak',
+            message: 'Wystąpił błąd w tej sekcji. Spróbuj ponownie lub uruchom aplikację ponownie, jeśli problem nie ustępuje.',
+        },
     },
 
     agentInput: {

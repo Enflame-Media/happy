@@ -434,6 +434,11 @@ export const pt: TranslationStructure = {
             scanQrCode: 'Escaneie o código QR',
             openCamera: 'Abrir câmera',
         },
+        errorBoundary: {
+            // Used by ErrorBoundary component
+            title: 'Algo deu errado',
+            message: 'Ocorreu um erro nesta seção. Tente novamente ou reinicie o aplicativo se o problema persistir.',
+        },
     },
 
     agentInput: {

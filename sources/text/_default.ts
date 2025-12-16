@@ -434,6 +434,11 @@ export const en = {
             scanQrCode: 'Scan the QR code',
             openCamera: 'Open Camera',
         },
+        errorBoundary: {
+            // Used by ErrorBoundary component
+            title: 'Something went wrong',
+            message: 'An error occurred in this section. Try again or restart the app if the problem persists.',
+        },
     },
 
     agentInput: {

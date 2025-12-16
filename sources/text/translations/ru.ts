@@ -406,6 +406,11 @@ export const ru: TranslationStructure = {
             scanQrCode: 'Отсканируйте QR-код',
             openCamera: 'Открыть камеру',
         },
+        errorBoundary: {
+            // Used by ErrorBoundary component
+            title: 'Что-то пошло не так',
+            message: 'В этом разделе произошла ошибка. Попробуйте снова или перезапустите приложение, если проблема не исчезнет.',
+        },
     },
 
     profile: {

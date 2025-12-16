@@ -5,6 +5,7 @@ import { useRealtimeStatus } from '@/sync/storage';
 import { useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
 import { useIsTablet } from '@/utils/responsive';
 import { EmptySessionsTablet } from './EmptySessionsTablet';
+import { ErrorBoundary } from './ErrorBoundary';
 import { SessionsList } from './SessionsList';
 import { VoiceAssistantStatusBar } from './VoiceAssistantStatusBar';
 import { TabBar, TabType } from './TabBar';
@@ -77,15 +78,28 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
     }, []);
 
     // Regular phone mode with tabs - define this before any conditional returns
+    // Each tab content is wrapped in an ErrorBoundary for graceful error handling
     const renderTabContent = React.useCallback(() => {
         switch (activeTab) {
             case 'zen':
-                return <ZenHome />;
+                return (
+                    <ErrorBoundary name="ZenHome">
+                        <ZenHome />
+                    </ErrorBoundary>
+                );
             case 'settings':
-                return <SettingsViewWrapper />;
+                return (
+                    <ErrorBoundary name="Settings">
+                        <SettingsViewWrapper />
+                    </ErrorBoundary>
+                );
             case 'sessions':
             default:
-                return <SessionsListWrapper />;
+                return (
+                    <ErrorBoundary name="Sessions">
+                        <SessionsListWrapper />
+                    </ErrorBoundary>
+                );
         }
     }, [activeTab]);
 
@@ -107,7 +121,9 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
             return (
                 <View style={styles.sidebarContentContainer}>
                     <View style={styles.emptyStateContainer}>
-                        <EmptySessionsTablet />
+                        <ErrorBoundary name="EmptySessionsTablet">
+                            <EmptySessionsTablet />
+                        </ErrorBoundary>
                     </View>
                 </View>
             );
@@ -116,7 +132,9 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
         // Sessions list
         return (
             <View style={styles.sidebarContentContainer}>
-                <SessionsList />
+                <ErrorBoundary name="SessionsList">
+                    <SessionsList />
+                </ErrorBoundary>
             </View>
         );
     }
