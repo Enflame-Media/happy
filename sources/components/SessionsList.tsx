@@ -24,6 +24,15 @@ import { useSessionContextMenu } from '@/hooks/useSessionContextMenu';
 import { QuickStartCard } from './QuickStartCard';
 import { SwipeableSessionRow } from './SwipeableSessionRow';
 
+// Item height constants for getItemLayout optimization
+// These enable O(1) scroll position calculations instead of O(n) measurement
+const ITEM_HEIGHTS = {
+    session: 89,        // 88px height + 1px marginBottom (typical non-last item)
+    sessionLast: 100,   // 88px height + 12px marginBottom (last item in group)
+    header: 46,         // paddingTop(20) + paddingBottom(8) + text(~18)
+    projectGroup: 53,   // paddingVertical(20) + title(18) + subtitle(13) + marginTop(2)
+} as const;
+
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
         flex: 1,
@@ -230,6 +239,74 @@ export function SessionsList() {
         }
     }, []);
 
+    // Check if list contains active-sessions (variable height) - skip getItemLayout if so
+    const hasActiveSessions = React.useMemo(() =>
+        dataWithSelected?.some(item => item.type === 'active-sessions') ?? false,
+    [dataWithSelected]);
+
+    // getItemLayout for O(1) scroll position calculations
+    // Only used when list contains fixed-height items (no active-sessions group)
+    const getItemLayout = React.useCallback((
+        _data: ArrayLike<SessionListViewItem & { selected?: boolean }> | null | undefined,
+        index: number
+    ) => {
+        if (!dataWithSelected || hasActiveSessions) {
+            // Fallback for variable-height lists - use average session height
+            return { length: ITEM_HEIGHTS.session, offset: ITEM_HEIGHTS.session * index, index };
+        }
+
+        // Calculate exact offset by summing heights of all items before this index
+        let offset = 0;
+        for (let i = 0; i < index && i < dataWithSelected.length; i++) {
+            const item = dataWithSelected[i];
+            switch (item.type) {
+                case 'header':
+                    offset += ITEM_HEIGHTS.header;
+                    break;
+                case 'project-group':
+                    offset += ITEM_HEIGHTS.projectGroup;
+                    break;
+                case 'session': {
+                    // Check if this is the last session in its group
+                    const nextItem = dataWithSelected[i + 1];
+                    const isLast = !nextItem || nextItem.type === 'header' || nextItem.type === 'active-sessions';
+                    offset += isLast ? ITEM_HEIGHTS.sessionLast : ITEM_HEIGHTS.session;
+                    break;
+                }
+                case 'active-sessions':
+                    // This shouldn't happen since we check hasActiveSessions above
+                    // but include for type safety
+                    offset += ITEM_HEIGHTS.session * item.sessions.length;
+                    break;
+            }
+        }
+
+        // Get length of current item
+        const currentItem = dataWithSelected[index];
+        let length: number = ITEM_HEIGHTS.session; // default
+        if (currentItem) {
+            switch (currentItem.type) {
+                case 'header':
+                    length = ITEM_HEIGHTS.header;
+                    break;
+                case 'project-group':
+                    length = ITEM_HEIGHTS.projectGroup;
+                    break;
+                case 'session': {
+                    const nextItem = dataWithSelected[index + 1];
+                    const isLast = !nextItem || nextItem.type === 'header' || nextItem.type === 'active-sessions';
+                    length = isLast ? ITEM_HEIGHTS.sessionLast : ITEM_HEIGHTS.session;
+                    break;
+                }
+                case 'active-sessions':
+                    length = ITEM_HEIGHTS.session * currentItem.sessions.length;
+                    break;
+            }
+        }
+
+        return { length, offset, index };
+    }, [dataWithSelected, hasActiveSessions]);
+
     const renderItem = React.useCallback(({ item, index }: { item: SessionListViewItem & { selected?: boolean }, index: number }) => {
         switch (item.type) {
             case 'header':
@@ -316,6 +393,7 @@ export function SessionsList() {
                     data={dataWithSelected}
                     renderItem={renderItem}
                     keyExtractor={keyExtractor}
+                    getItemLayout={hasActiveSessions ? undefined : getItemLayout}
                     contentContainerStyle={contentContainerStyle}
                     ListHeaderComponent={HeaderComponent}
                 />
