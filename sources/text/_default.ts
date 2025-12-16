@@ -554,6 +554,14 @@ export const en = {
             folderLabel: 'FOLDER',
         },
         noMachinesAvailable: 'No machines',
+        // Web keyboard shortcuts hints (HAP-328)
+        shortcuts: {
+            title: 'Shortcuts',
+            send: 'Send',
+            cycleMode: 'Cycle mode',
+            cycleModel: 'Cycle model',
+            abort: 'Abort',
+        },
     },
 
     machineLauncher: {

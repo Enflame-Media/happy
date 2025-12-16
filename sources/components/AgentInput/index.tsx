@@ -24,6 +24,7 @@ import { applySuggestion } from '../autocomplete/applySuggestion';
 import { StatusDisplay } from './StatusDisplay';
 import { SettingsOverlay } from './SettingsOverlay';
 import { ActionButtons } from './ActionButtons';
+import { KeyboardShortcutHints } from './KeyboardShortcutHints';
 
 // Styles and types
 import { stylesheet, getContextWarning } from './styles';
@@ -354,6 +355,13 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                         onSendPress={handleSendPress}
                         onMicPress={props.onMicPress}
                         isMicActive={props.isMicActive}
+                    />
+
+                    {/* Keyboard shortcut hints for web (HAP-328) */}
+                    <KeyboardShortcutHints
+                        showAbortHint={!!props.showAbortButton}
+                        showModelHint={!!props.onModelModeChange}
+                        showModeHint={!!props.onPermissionModeChange}
                     />
                 </View>
             </View>

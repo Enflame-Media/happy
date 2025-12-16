@@ -553,6 +553,14 @@ export const pt: TranslationStructure = {
             folderLabel: 'PASTA',
         },
         noMachinesAvailable: 'Sem máquinas',
+        // Web keyboard shortcuts hints (HAP-328)
+        shortcuts: {
+            title: 'Atalhos',
+            send: 'Enviar',
+            cycleMode: 'Mudar modo',
+            cycleModel: 'Mudar modelo',
+            abort: 'Cancelar',
+        },
     },
 
     machineLauncher: {

@@ -563,6 +563,14 @@ export const pl: TranslationStructure = {
             folderLabel: 'FOLDER',
         },
         noMachinesAvailable: 'Brak maszyn',
+        // Web keyboard shortcuts hints (HAP-328)
+        shortcuts: {
+            title: 'Skróty',
+            send: 'Wyślij',
+            cycleMode: 'Zmień tryb',
+            cycleModel: 'Zmień model',
+            abort: 'Przerwij',
+        },
     },
 
     machineLauncher: {

@@ -563,6 +563,14 @@ export const ru: TranslationStructure = {
             folderLabel: 'ПАПКА',
         },
         noMachinesAvailable: 'Нет машин',
+        // Web keyboard shortcuts hints (HAP-328)
+        shortcuts: {
+            title: 'Сочетания',
+            send: 'Отправить',
+            cycleMode: 'Сменить режим',
+            cycleModel: 'Сменить модель',
+            abort: 'Прервать',
+        },
     },
 
     machineLauncher: {

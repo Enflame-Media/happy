@@ -553,6 +553,14 @@ export const ca: TranslationStructure = {
             folderLabel: 'CARPETA',
         },
         noMachinesAvailable: 'Sense màquines',
+        // Web keyboard shortcuts hints (HAP-328)
+        shortcuts: {
+            title: 'Dreceres',
+            send: 'Enviar',
+            cycleMode: 'Canviar mode',
+            cycleModel: 'Canviar model',
+            abort: 'Cancel·lar',
+        },
     },
 
     machineLauncher: {

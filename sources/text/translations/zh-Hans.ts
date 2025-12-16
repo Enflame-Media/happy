@@ -555,6 +555,14 @@ export const zhHans: TranslationStructure = {
             folderLabel: '文件夹',
         },
         noMachinesAvailable: '无设备',
+        // Web keyboard shortcuts hints (HAP-328)
+        shortcuts: {
+            title: '快捷键',
+            send: '发送',
+            cycleMode: '切换模式',
+            cycleModel: '切换模型',
+            abort: '中止',
+        },
     },
 
     machineLauncher: {

@@ -553,6 +553,14 @@ export const es: TranslationStructure = {
             folderLabel: 'CARPETA',
         },
         noMachinesAvailable: 'Sin máquinas',
+        // Web keyboard shortcuts hints (HAP-328)
+        shortcuts: {
+            title: 'Atajos',
+            send: 'Enviar',
+            cycleMode: 'Cambiar modo',
+            cycleModel: 'Cambiar modelo',
+            abort: 'Cancelar',
+        },
     },
 
     machineLauncher: {
