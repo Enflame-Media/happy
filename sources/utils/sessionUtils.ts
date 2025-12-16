@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Session } from '@/sync/storageTypes';
+import { Message } from '@/sync/typesMessage';
 import { t } from '@/text';
 
 export type SessionState = 'disconnected' | 'thinking' | 'waiting' | 'permission_required';
@@ -218,3 +219,36 @@ export function formatLastSeen(activeAt: number, isActive: boolean = false): str
 }
 
 const vibingMessages = ["Accomplishing", "Actioning", "Actualizing", "Baking", "Booping", "Brewing", "Calculating", "Cerebrating", "Channelling", "Churning", "Clauding", "Coalescing", "Cogitating", "Computing", "Combobulating", "Concocting", "Conjuring", "Considering", "Contemplating", "Cooking", "Crafting", "Creating", "Crunching", "Deciphering", "Deliberating", "Determining", "Discombobulating", "Divining", "Doing", "Effecting", "Elucidating", "Enchanting", "Envisioning", "Finagling", "Flibbertigibbeting", "Forging", "Forming", "Frolicking", "Generating", "Germinating", "Hatching", "Herding", "Honking", "Ideating", "Imagining", "Incubating", "Inferring", "Manifesting", "Marinating", "Meandering", "Moseying", "Mulling", "Mustering", "Musing", "Noodling", "Percolating", "Perusing", "Philosophising", "Pontificating", "Pondering", "Processing", "Puttering", "Puzzling", "Reticulating", "Ruminating", "Scheming", "Schlepping", "Shimmying", "Simmering", "Smooshing", "Spelunking", "Spinning", "Stewing", "Sussing", "Synthesizing", "Thinking", "Tinkering", "Transmuting", "Unfurling", "Unravelling", "Vibing", "Wandering", "Whirring", "Wibbling", "Wizarding", "Working", "Wrangling"];
+
+const MAX_PREVIEW_LENGTH = 50;
+
+/**
+ * Extracts the last user message preview from a list of messages.
+ * Returns the text truncated to ~50 characters with ellipsis if needed.
+ * Returns null if no user messages are found.
+ */
+export function getLastUserMessagePreview(messages: Message[]): string | null {
+    // Find the last user message by iterating backwards
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        if (message.kind === 'user-text') {
+            const text = message.displayText || message.text;
+            // Normalize whitespace: collapse multiple whitespace chars to single space
+            const normalized = text.replace(/\s+/g, ' ').trim();
+            if (normalized.length === 0) {
+                continue; // Skip empty messages
+            }
+            if (normalized.length <= MAX_PREVIEW_LENGTH) {
+                return normalized;
+            }
+            // Truncate at word boundary if possible
+            const truncated = normalized.slice(0, MAX_PREVIEW_LENGTH);
+            const lastSpace = truncated.lastIndexOf(' ');
+            if (lastSpace > MAX_PREVIEW_LENGTH * 0.6) {
+                return truncated.slice(0, lastSpace) + '…';
+            }
+            return truncated + '…';
+        }
+    }
+    return null;
+}

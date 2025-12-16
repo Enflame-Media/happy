@@ -4,7 +4,8 @@ import { Text } from '@/components/StyledText';
 import { usePathname } from 'expo-router';
 import { SessionListViewItem } from '@/sync/storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { getSessionName, useSessionStatus, getSessionSubtitle, getSessionAvatarId } from '@/utils/sessionUtils';
+import { getSessionName, useSessionStatus, getSessionSubtitle, getSessionAvatarId, getLastUserMessagePreview } from '@/utils/sessionUtils';
+import { useSessionMessages } from '@/sync/storage';
 import { Avatar } from './Avatar';
 import { ActiveSessionsGroup } from './ActiveSessionsGroup';
 import { ActiveSessionsGroupCompact } from './ActiveSessionsGroupCompact';
@@ -145,6 +146,13 @@ const stylesheet = StyleSheet.create((theme) => ({
         marginBottom: 4,
         ...Typography.default(),
     },
+    sessionMessagePreview: {
+        fontSize: 12,
+        color: theme.colors.textSecondary,
+        marginBottom: 4,
+        fontStyle: 'italic',
+        ...Typography.default(),
+    },
     statusRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -200,6 +208,9 @@ const stylesheet = StyleSheet.create((theme) => ({
         opacity: 0.4,
     },
     sessionSubtitleContainer: {
+        overflow: 'hidden',
+    },
+    sessionMessagePreviewContainer: {
         overflow: 'hidden',
     },
 }));
@@ -437,6 +448,12 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
     const navigateToSession = useNavigateToSession();
     const isTablet = useIsTablet();
     const { showContextMenu } = useSessionContextMenu(session);
+    const { messages } = useSessionMessages(session.id);
+
+    // Get last user message preview for session identification
+    const messagePreview = React.useMemo(() => {
+        return getLastUserMessagePreview(messages);
+    }, [messages]);
 
     // Inactive sessions start collapsed, expand on tap
     // Animation value: 0 = collapsed, 1 = expanded
@@ -500,6 +517,14 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
         return { opacity: expandProgress.value };
     });
 
+    // Animated message preview - shown when collapsed, hidden when expanded
+    const messagePreviewAnimatedStyle = useAnimatedStyle(() => {
+        const opacity = interpolate(expandProgress.value, [0, 1], [1, 0]);
+        const height = interpolate(expandProgress.value, [0, 1], [16, 0]);
+        const marginBottom = interpolate(expandProgress.value, [0, 1], [2, 0]);
+        return { opacity, height, marginBottom };
+    });
+
     // Chevron rotation for expand indicator
     const chevronAnimatedStyle = useAnimatedStyle(() => {
         const rotation = interpolate(expandProgress.value, [0, 1], [0, 90]);
@@ -559,6 +584,15 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
                             />
                         </Animated.View>
                     </View>
+
+                    {/* Message preview - shown when collapsed for quick identification */}
+                    {messagePreview && (
+                        <Animated.View style={[styles.sessionMessagePreviewContainer, messagePreviewAnimatedStyle]}>
+                            <Text style={styles.sessionMessagePreview} numberOfLines={1}>
+                                "{messagePreview}"
+                            </Text>
+                        </Animated.View>
+                    )}
 
                     {/* Subtitle line - animated visibility */}
                     <Animated.View style={[styles.sessionSubtitleContainer, subtitleAnimatedStyle]}>
