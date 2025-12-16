@@ -1,20 +1,20 @@
 /**
- * SwipeableSessionRow - A wrapper component that adds swipe actions to session rows
+ * SwipeableSessionRow - A wrapper component that adds swipe/hover actions to session rows
  *
  * This component wraps session items (SessionItem, CompactSessionRow) to provide:
  * - Swipe left → Archive (connected) or Delete (disconnected) actions
  * - Swipe right → Quick reply action (navigate to session with input focused)
  *
- * Uses react-native-gesture-handler's Swipeable component.
- * Disabled on web platform where hover actions would be more appropriate.
+ * Uses react-native-gesture-handler's Swipeable component on mobile.
+ * On web platform, shows hover action buttons instead of swipe gestures.
  *
  * @example
  * <SwipeableSessionRow session={session} isConnected={true}>
  *   <SessionItem session={session} />
  * </SwipeableSessionRow>
  */
-import React, { useRef, useCallback } from 'react';
-import { Platform, Animated, Pressable, AccessibilityInfo } from 'react-native';
+import React, { useRef, useCallback, useState } from 'react';
+import { Platform, Animated, Pressable, AccessibilityInfo, View } from 'react-native';
 import { Text } from '@/components/StyledText';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -29,6 +29,7 @@ import { useHappyAction } from '@/hooks/useHappyAction';
 import { useSessionStatus } from '@/utils/sessionUtils';
 import { StyleSheet } from 'react-native-unistyles';
 import { Typography } from '@/constants/Typography';
+import { HoverSessionActions } from './HoverSessionActions';
 
 const ACTION_WIDTH = 80;
 
@@ -230,8 +231,76 @@ export const SwipeableSessionRow = React.memo(function SwipeableSessionRow({
         }
     }, [sessionStatus.isConnected, session.active, handleArchive, handleDelete, handleQuickReply]);
 
-    // Don't wrap with Swipeable on web - use regular children
-    if (Platform.OS === 'web' || disabled) {
+    // Hover state for web platform
+    const [isHovered, setIsHovered] = useState(false);
+
+    // On web platform, show hover actions instead of swipe gestures
+    if (Platform.OS === 'web') {
+        // Handlers for hover actions (no haptics on web, no swipeable ref to close)
+        const handleWebQuickReply = () => {
+            navigateToSession(session.id);
+            AccessibilityInfo.announceForAccessibility(t('swipeActions.navigatingToReply'));
+        };
+
+        const handleWebArchive = () => {
+            Modal.alert(
+                t('sessionInfo.archiveSession'),
+                t('sessionInfo.archiveSessionConfirm'),
+                [
+                    { text: t('common.cancel'), style: 'cancel' },
+                    {
+                        text: t('sessionInfo.archiveSession'),
+                        style: 'destructive',
+                        onPress: () => {
+                            performArchive();
+                            AccessibilityInfo.announceForAccessibility(t('swipeActions.sessionArchived'));
+                        },
+                    },
+                ]
+            );
+        };
+
+        const handleWebDelete = () => {
+            Modal.alert(
+                t('sessionInfo.deleteSession'),
+                t('sessionInfo.deleteSessionWarning'),
+                [
+                    { text: t('common.cancel'), style: 'cancel' },
+                    {
+                        text: t('sessionInfo.deleteSession'),
+                        style: 'destructive',
+                        onPress: () => {
+                            performDelete();
+                            AccessibilityInfo.announceForAccessibility(t('swipeActions.sessionDeleted'));
+                        },
+                    },
+                ]
+            );
+        };
+
+        return (
+            <View
+                style={styles.webContainer}
+                // @ts-expect-error - onMouseEnter/onMouseLeave are web-only props
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+            >
+                {children}
+                {isHovered && (
+                    <HoverSessionActions
+                        onReply={handleWebQuickReply}
+                        onArchive={handleWebArchive}
+                        onDelete={handleWebDelete}
+                        isConnected={sessionStatus.isConnected}
+                        isActive={session.active}
+                    />
+                )}
+            </View>
+        );
+    }
+
+    // If disabled, just render children without any actions
+    if (disabled) {
         return <>{children}</>;
     }
 
@@ -255,6 +324,9 @@ export const SwipeableSessionRow = React.memo(function SwipeableSessionRow({
 });
 
 const stylesheet = StyleSheet.create((_theme) => ({
+    webContainer: {
+        position: 'relative',
+    },
     swipeableContainer: {
         overflow: 'hidden',
     },
