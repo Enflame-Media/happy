@@ -8,6 +8,7 @@ import { MessageView } from './MessageView';
 import { Metadata, Session } from '@/sync/storageTypes';
 import { ChatFooter } from './ChatFooter';
 import { Message } from '@/sync/typesMessage';
+import { useScrollPerformance } from '@/utils/performance';
 
 export const ChatList = React.memo((props: { session: Session }) => {
     const { messages } = useSessionMessages(props.session.id);
@@ -43,6 +44,10 @@ const ChatListInternal = React.memo((props: {
     const renderItem = useCallback(({ item }: { item: any }) => (
         <MessageView message={item} metadata={props.metadata} sessionId={props.sessionId} />
     ), [props.metadata, props.sessionId]);
+
+    // Scroll performance monitoring (HAP-380)
+    const onScrollPerformance = useScrollPerformance('ChatList');
+
     return (
         <FlatList
             data={props.messages}
@@ -61,6 +66,8 @@ const ChatListInternal = React.memo((props: {
             renderItem={renderItem}
             ListHeaderComponent={<ListFooter sessionId={props.sessionId} />}
             ListFooterComponent={<ListHeader />}
+            onScroll={onScrollPerformance}
+            scrollEventThrottle={16}
         />
     )
 });

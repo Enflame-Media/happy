@@ -12,7 +12,9 @@
  * HAP-336: Observability - Add performance monitoring and metrics
  */
 
+import * as React from 'react';
 import { Platform, InteractionManager } from 'react-native';
+import type { NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { tracking } from '@/track/tracking';
 
 // Performance thresholds (ms)
@@ -252,4 +254,198 @@ export function reportBaselines(): void {
 
         console.log('[Performance] Baselines reported to analytics');
     });
+}
+
+// ============================================================================
+// Scroll Performance Monitoring (HAP-380)
+// ============================================================================
+
+// Scroll performance thresholds
+const SCROLL_FRAME_THRESHOLD = 16; // 60fps target - 16.67ms per frame
+const SCROLL_JANK_THRESHOLD = 32; // 2+ dropped frames = jank
+const SCROLL_REPORT_INTERVAL = 5000; // Report every 5 seconds of scrolling
+const MIN_SCROLL_SAMPLES = 10; // Minimum samples before reporting
+
+/**
+ * Scroll metrics for a single scroll session
+ */
+interface ScrollMetrics {
+    listId: string;
+    startTime: number;
+    lastEventTime: number;
+    frameTimes: number[];
+    droppedFrames: number;
+    jankEvents: number;
+    totalScrollDistance: number;
+    lastContentOffset: number;
+    reportedAt: number;
+}
+
+// Active scroll sessions by list ID
+const activeScrollSessions = new Map<string, ScrollMetrics>();
+
+/**
+ * Create a scroll performance tracker for a specific list.
+ * Returns an onScroll handler to attach to FlatList.
+ *
+ * @param listId - Unique identifier for the list (e.g., 'SessionsList', 'ChatList')
+ * @returns Object with onScroll handler and cleanup function
+ *
+ * @example
+ * const scrollTracker = createScrollTracker('SessionsList');
+ * <FlatList onScroll={scrollTracker.onScroll} />
+ * // On unmount: scrollTracker.cleanup();
+ */
+export function createScrollTracker(listId: string): {
+    onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+    cleanup: () => void;
+} {
+    const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        const now = performance.now();
+        const { contentOffset } = event.nativeEvent;
+        const currentOffset = contentOffset.y;
+
+        let metrics = activeScrollSessions.get(listId);
+
+        if (!metrics) {
+            // Start new scroll session
+            metrics = {
+                listId,
+                startTime: now,
+                lastEventTime: now,
+                frameTimes: [],
+                droppedFrames: 0,
+                jankEvents: 0,
+                totalScrollDistance: 0,
+                lastContentOffset: currentOffset,
+                reportedAt: now,
+            };
+            activeScrollSessions.set(listId, metrics);
+            return;
+        }
+
+        // Calculate frame time since last scroll event
+        const frameTime = now - metrics.lastEventTime;
+        metrics.lastEventTime = now;
+
+        // Only track frame times during active scrolling (not when momentum settles)
+        if (frameTime < 200) {
+            metrics.frameTimes.push(frameTime);
+
+            // Detect dropped frames
+            if (frameTime > SCROLL_FRAME_THRESHOLD) {
+                metrics.droppedFrames++;
+
+                // Detect significant jank (2+ dropped frames)
+                if (frameTime > SCROLL_JANK_THRESHOLD) {
+                    metrics.jankEvents++;
+                }
+            }
+        }
+
+        // Track scroll distance
+        const scrollDelta = Math.abs(currentOffset - metrics.lastContentOffset);
+        metrics.totalScrollDistance += scrollDelta;
+        metrics.lastContentOffset = currentOffset;
+
+        // Report periodically during active scroll
+        if (now - metrics.reportedAt > SCROLL_REPORT_INTERVAL) {
+            reportScrollMetrics(metrics, false);
+            metrics.reportedAt = now;
+        }
+    };
+
+    const cleanup = () => {
+        const metrics = activeScrollSessions.get(listId);
+        if (metrics && metrics.frameTimes.length >= MIN_SCROLL_SAMPLES) {
+            reportScrollMetrics(metrics, true);
+        }
+        activeScrollSessions.delete(listId);
+    };
+
+    return { onScroll, cleanup };
+}
+
+/**
+ * Report scroll performance metrics to analytics
+ */
+function reportScrollMetrics(metrics: ScrollMetrics, isFinal: boolean): void {
+    if (metrics.frameTimes.length < MIN_SCROLL_SAMPLES) {
+        return;
+    }
+
+    const avgFrameTime = metrics.frameTimes.reduce((a, b) => a + b, 0) / metrics.frameTimes.length;
+    const maxFrameTime = Math.max(...metrics.frameTimes);
+    const scrollDuration = metrics.lastEventTime - metrics.startTime;
+    const droppedFrameRate = metrics.droppedFrames / metrics.frameTimes.length;
+
+    // Calculate velocity (pixels per second)
+    const avgVelocity = scrollDuration > 0
+        ? (metrics.totalScrollDistance / scrollDuration) * 1000
+        : 0;
+
+    scheduleIdleReport(() => {
+        const properties = {
+            list_id: metrics.listId,
+            avg_frame_time_ms: Math.round(avgFrameTime * 10) / 10,
+            max_frame_time_ms: Math.round(maxFrameTime),
+            dropped_frames: metrics.droppedFrames,
+            dropped_frame_rate: Math.round(droppedFrameRate * 100) / 100,
+            jank_events: metrics.jankEvents,
+            scroll_distance_px: Math.round(metrics.totalScrollDistance),
+            scroll_duration_ms: Math.round(scrollDuration),
+            avg_velocity_px_s: Math.round(avgVelocity),
+            sample_count: metrics.frameTimes.length,
+            is_final: isFinal,
+            platform: Platform.OS,
+        };
+
+        tracking?.capture('perf_scroll', properties);
+
+        // Log jank for debugging
+        if (metrics.jankEvents > 0 || droppedFrameRate > 0.1) {
+            console.warn(
+                `[Performance] Scroll jank on ${metrics.listId}: ` +
+                `${metrics.jankEvents} jank events, ` +
+                `${Math.round(droppedFrameRate * 100)}% frames dropped, ` +
+                `avg ${Math.round(avgFrameTime)}ms/frame`
+            );
+        }
+    });
+
+    // Reset frame times for next reporting period (but keep session alive)
+    if (!isFinal) {
+        metrics.frameTimes = [];
+        metrics.droppedFrames = 0;
+        metrics.jankEvents = 0;
+    }
+}
+
+/**
+ * React hook for scroll performance monitoring.
+ * Automatically cleans up on unmount.
+ *
+ * @param listId - Unique identifier for the list
+ * @returns onScroll handler to attach to FlatList
+ *
+ * @example
+ * const onScroll = useScrollPerformance('SessionsList');
+ * <FlatList onScroll={onScroll} />
+ */
+export function useScrollPerformance(
+    listId: string
+): (event: NativeSyntheticEvent<NativeScrollEvent>) => void {
+    const trackerRef = React.useRef<ReturnType<typeof createScrollTracker> | null>(null);
+
+    if (!trackerRef.current) {
+        trackerRef.current = createScrollTracker(listId);
+    }
+
+    React.useEffect(() => {
+        return () => {
+            trackerRef.current?.cleanup();
+        };
+    }, [listId]);
+
+    return trackerRef.current.onScroll;
 }

@@ -27,6 +27,7 @@ import { SwipeableSessionRow } from './SwipeableSessionRow';
 import { SelectableCheckbox } from './SelectableCheckbox';
 import { useMultiSelectContext } from './MultiSelectContext';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpolate } from 'react-native-reanimated';
+import { useScrollPerformance } from '@/utils/performance';
 
 // Item height constants for getItemLayout optimization
 // These enable O(1) scroll position calculations instead of O(n) measurement
@@ -240,6 +241,9 @@ export function SessionsList({ eligibleSessionIds }: SessionsListProps) {
     const selectable = isTablet;
     const { isSelectMode } = useMultiSelectContext();
 
+    // Scroll performance monitoring (HAP-380)
+    const onScrollPerformance = useScrollPerformance('SessionsList');
+
     // Memoize contentContainerStyle to prevent FlatList re-renders
     // Add extra padding when in select mode for the action bar
     const contentContainerStyle = React.useMemo(() => ({
@@ -440,6 +444,8 @@ export function SessionsList({ eligibleSessionIds }: SessionsListProps) {
                     getItemLayout={hasVariableHeightItems ? undefined : getItemLayout}
                     contentContainerStyle={contentContainerStyle}
                     ListHeaderComponent={HeaderComponent}
+                    onScroll={onScrollPerformance}
+                    scrollEventThrottle={16}
                 />
             </View>
         </View>
