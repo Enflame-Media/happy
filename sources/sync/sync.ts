@@ -1702,10 +1702,10 @@ class Sync {
                     return;
                 }
 
-                const agentState = updateData.body.agentState && sessionEncryption
+                const agentState = updateData.body.agentState?.value && sessionEncryption
                     ? await sessionEncryption.decryptAgentState(updateData.body.agentState.version, updateData.body.agentState.value)
                     : session.agentState;
-                const metadata = updateData.body.metadata && sessionEncryption
+                const metadata = updateData.body.metadata?.value && sessionEncryption
                     ? await sessionEncryption.decryptMetadata(updateData.body.metadata.version, updateData.body.metadata.value)
                     : session.metadata;
 
