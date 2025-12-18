@@ -325,6 +325,9 @@ export const ca: TranslationStructure = {
     session: {
         inputPlaceholder: 'Escriu un missatge...',
         inputPlaceholderArchived: 'La sessió està arxivada',
+        // HAP-392: Archived session banner
+        archivedBannerText: 'Aquesta sessió està arxivada',
+        machineOffline: 'Màquina fora de línia',
         noMessagesYet: 'Encara no hi ha missatges',
         createdTime: ({ time }: { time: string }) => `Creat ${time}`,
         // Expandable header metadata section (HAP-326)

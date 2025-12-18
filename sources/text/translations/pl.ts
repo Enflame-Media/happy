@@ -336,6 +336,9 @@ export const pl: TranslationStructure = {
     session: {
         inputPlaceholder: 'Wpisz wiadomość...',
         inputPlaceholderArchived: 'Sesja jest zarchiwizowana',
+        // HAP-392: Archived session banner
+        archivedBannerText: 'Ta sesja jest zarchiwizowana',
+        machineOffline: 'Maszyna offline',
         noMessagesYet: 'Brak wiadomości',
         createdTime: ({ time }: { time: string }) => `Utworzono ${time}`,
         // Expandable header metadata section (HAP-326)

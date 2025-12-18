@@ -13,9 +13,13 @@ import { Modal } from '@/modal';
 import { voiceHooks } from '@/realtime/hooks/voiceHooks';
 import { startRealtimeSession, stopRealtimeSession, updateCurrentSessionId } from '@/realtime/RealtimeSession';
 import { gitStatusSync } from '@/sync/gitStatusSync';
-import { sessionAbort } from '@/sync/ops';
-import { storage, useIsDataReady, useLocalSetting, useRealtimeStatus, useSessionMessages, useSessionUsage, useSetting, useAllSessions } from '@/sync/storage';
+import { sessionAbort, machineSpawnNewSession } from '@/sync/ops';
+import { storage, useIsDataReady, useLocalSetting, useRealtimeStatus, useSessionMessages, useSessionUsage, useSetting, useAllSessions, useMachine } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
+import { isMachineOnline } from '@/utils/machineUtils';
+import { useHappyAction } from '@/hooks/useHappyAction';
+import { HappyError } from '@/utils/errors';
+import { Toast } from '@/toast';
 import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
 import { t } from '@/text';
@@ -537,6 +541,38 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     // HAP-391: Determine if input should be disabled (archived/inactive sessions)
     const isInputDisabled = !sessionStatus.isConnected || !session.active;
 
+    // HAP-392: Restore session functionality for archived sessions
+    const machine = useMachine(session.metadata?.machineId ?? '');
+    const isClaudeSession = !session.metadata?.flavor || session.metadata.flavor === 'claude';
+    const machineOnline = machine ? isMachineOnline(machine) : false;
+    const canRestore = isInputDisabled && isClaudeSession && session.metadata?.machineId && session.metadata?.path;
+
+    const [isRestoring, performRestore] = useHappyAction(async () => {
+        if (!session.metadata?.machineId || !session.metadata?.path) {
+            throw new HappyError(t('sessionInfo.failedToRestoreSession'), false);
+        }
+        if (!machineOnline) {
+            throw new HappyError(t('sessionInfo.restoreRequiresMachine'), false);
+        }
+
+        const result = await machineSpawnNewSession({
+            machineId: session.metadata.machineId,
+            directory: session.metadata.path,
+            agent: 'claude',
+            sessionId: session.id,
+        });
+
+        if (result.type === 'error') {
+            throw new HappyError(result.errorMessage || t('sessionInfo.failedToRestoreSession'), true);
+        }
+        if (result.type === 'requestToApproveDirectoryCreation') {
+            throw new HappyError(t('sessionInfo.failedToRestoreSession'), false);
+        }
+
+        Toast.show({ message: t('sessionInfo.restoreSessionSuccess') });
+        router.replace(`/session/${result.sessionId}`);
+    });
+
     const input = (
         <AgentInput
             placeholder={t('session.inputPlaceholder')}
@@ -631,6 +667,39 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                         isConnected={sessionStatus.isConnected}
                         flavor={session.metadata?.flavor}
                     />
+                </View>
+            )}
+
+            {/* HAP-392: Archived Session Banner with Restore Button */}
+            {isInputDisabled && !(isLandscape && deviceType === 'phone') && (
+                <View style={styles.archivedBannerContainer}>
+                    <View style={styles.archivedBanner}>
+                        <Ionicons name="archive-outline" size={16} color="#856404" />
+                        <Text style={styles.archivedBannerText}>
+                            {t('session.archivedBannerText')}
+                        </Text>
+                        {canRestore && (
+                            <Pressable
+                                onPress={machineOnline ? performRestore : undefined}
+                                disabled={!machineOnline || isRestoring}
+                                style={[
+                                    styles.restoreButton,
+                                    (!machineOnline || isRestoring) && styles.restoreButtonDisabled
+                                ]}
+                            >
+                                {isRestoring ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <Text style={[
+                                        styles.restoreButtonText,
+                                        !machineOnline && styles.restoreButtonTextDisabled
+                                    ]}>
+                                        {machineOnline ? t('sessionInfo.restoreSession') : t('session.machineOffline')}
+                                    </Text>
+                                )}
+                            </Pressable>
+                        )}
+                    </View>
                 </View>
             )}
 
@@ -740,6 +809,52 @@ const stylesheet = StyleSheet.create((theme) => ({
         fontSize: 12,
         color: '#856404',
         fontWeight: '600',
+    },
+    // HAP-392: Archived session banner styles
+    archivedBannerContainer: {
+        position: 'absolute',
+        top: 8,
+        left: 0,
+        right: 0,
+        zIndex: 995,
+        alignItems: 'center',
+    },
+    archivedBanner: {
+        backgroundColor: '#FFF3CD',
+        borderRadius: 100,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 4,
+    },
+    archivedBannerText: {
+        fontSize: 13,
+        color: '#856404',
+        fontWeight: '500',
+    },
+    restoreButton: {
+        backgroundColor: '#34C759',
+        borderRadius: 100,
+        paddingHorizontal: 12,
+        paddingVertical: 5,
+        marginLeft: 4,
+    },
+    restoreButtonDisabled: {
+        backgroundColor: '#8E8E93',
+    },
+    restoreButtonText: {
+        fontSize: 12,
+        color: '#fff',
+        fontWeight: '600',
+    },
+    restoreButtonTextDisabled: {
+        color: '#fff',
     },
     // Back button for landscape mode
     backButtonBase: {

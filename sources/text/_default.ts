@@ -325,6 +325,9 @@ export const en = {
     session: {
         inputPlaceholder: 'Type a message ...',
         inputPlaceholderArchived: 'Session is archived',
+        // HAP-392: Archived session banner
+        archivedBannerText: 'This session is archived',
+        machineOffline: 'Machine offline',
         noMessagesYet: 'No messages yet',
         createdTime: ({ time }: { time: string }) => `Created ${time}`,
         // Expandable header metadata section (HAP-326)

@@ -327,6 +327,9 @@ export const zhHans: TranslationStructure = {
     session: {
         inputPlaceholder: '输入消息...',
         inputPlaceholderArchived: '会话已归档',
+        // HAP-392: Archived session banner
+        archivedBannerText: '此会话已归档',
+        machineOffline: '机器离线',
         noMessagesYet: '暂无消息',
         createdTime: ({ time }: { time: string }) => `创建于 ${time}`,
         // Expandable header metadata section (HAP-326)
