@@ -1045,4 +1045,15 @@ export const zhHans: TranslationStructure = {
         progressText: ({ completed, total }: { completed: number; total: number }) => `${completed} / ${total}`,
         cancelledByUser: '用户已取消',
     },
+
+    voiceStatus: {
+        // Voice assistant status bar (HAP-400)
+        connecting: '连接中...',
+        active: '语音助手已激活',
+        activeShort: '激活',
+        connectionError: '连接错误',
+        errorShort: '错误',
+        default: '语音助手',
+        tapToEnd: '点击结束',
+    },
 } as const;

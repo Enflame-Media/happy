@@ -1044,6 +1044,17 @@ export const es: TranslationStructure = {
         progressText: ({ completed, total }: { completed: number; total: number }) => `${completed} de ${total}`,
         cancelledByUser: 'Cancelado por el usuario',
     },
+
+    voiceStatus: {
+        // Voice assistant status bar (HAP-400)
+        connecting: 'Conectando...',
+        active: 'Asistente de voz activo',
+        activeShort: 'Activo',
+        connectionError: 'Error de conexión',
+        errorShort: 'Error',
+        default: 'Asistente de voz',
+        tapToEnd: 'Toca para terminar',
+    },
 } as const;
 
 export type TranslationsEs = typeof es;

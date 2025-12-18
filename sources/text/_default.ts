@@ -1045,6 +1045,17 @@ export const en = {
         progressText: ({ completed, total }: { completed: number; total: number }) => `${completed} of ${total}`,
         cancelledByUser: 'Cancelled by user',
     },
+
+    voiceStatus: {
+        // Voice assistant status bar (HAP-400)
+        connecting: 'Connecting...',
+        active: 'Voice Assistant Active',
+        activeShort: 'Active',
+        connectionError: 'Connection Error',
+        errorShort: 'Error',
+        default: 'Voice Assistant',
+        tapToEnd: 'Tap to end',
+    },
 } as const;
 
 export type Translations = typeof en;

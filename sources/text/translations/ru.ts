@@ -1066,6 +1066,17 @@ export const ru: TranslationStructure = {
         progressText: ({ completed, total }: { completed: number; total: number }) => `${completed} из ${total}`,
         cancelledByUser: 'Отменено пользователем',
     },
+
+    voiceStatus: {
+        // Voice assistant status bar (HAP-400)
+        connecting: 'Подключение...',
+        active: 'Голосовой ассистент активен',
+        activeShort: 'Активен',
+        connectionError: 'Ошибка подключения',
+        errorShort: 'Ошибка',
+        default: 'Голосовой ассистент',
+        tapToEnd: 'Нажмите для завершения',
+    },
 } as const;
 
 export type TranslationsRu = typeof ru;

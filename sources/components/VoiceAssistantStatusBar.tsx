@@ -7,6 +7,7 @@ import { Typography } from '@/constants/Typography';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { stopRealtimeSession } from '@/realtime/RealtimeSession';
 import { useUnistyles } from 'react-native-unistyles';
+import { t } from '@/text';
 
 interface VoiceAssistantStatusBarProps {
     /**
@@ -64,7 +65,7 @@ export const VoiceAssistantStatusBar = React.memo(({ variant = 'floating', style
                     color: theme.colors.status.connecting,
                     backgroundColor: theme.colors.surfaceHighest,
                     isPulsing: true,
-                    text: 'Connecting...',
+                    text: t('voiceStatus.connecting'),
                     shortText: '',
                     textColor: theme.colors.text,
                     iconName: 'mic-outline',
@@ -74,8 +75,8 @@ export const VoiceAssistantStatusBar = React.memo(({ variant = 'floating', style
                     color: theme.colors.status.connected,
                     backgroundColor: theme.colors.surfaceHighest,
                     isPulsing: false,
-                    text: 'Voice Assistant Active',
-                    shortText: 'Active',
+                    text: t('voiceStatus.active'),
+                    shortText: t('voiceStatus.activeShort'),
                     textColor: theme.colors.text,
                     iconName: 'mic',
                 };
@@ -84,8 +85,8 @@ export const VoiceAssistantStatusBar = React.memo(({ variant = 'floating', style
                     color: theme.colors.status.error,
                     backgroundColor: theme.colors.surfaceHighest,
                     isPulsing: false,
-                    text: 'Connection Error',
-                    shortText: 'Error',
+                    text: t('voiceStatus.connectionError'),
+                    shortText: t('voiceStatus.errorShort'),
                     textColor: theme.colors.text,
                     iconName: 'alert-circle',
                 };
@@ -94,7 +95,7 @@ export const VoiceAssistantStatusBar = React.memo(({ variant = 'floating', style
                     color: theme.colors.status.default,
                     backgroundColor: theme.colors.surfaceHighest,
                     isPulsing: false,
-                    text: 'Voice Assistant',
+                    text: t('voiceStatus.default'),
                     shortText: '',
                     textColor: theme.colors.text,
                     iconName: 'mic',
@@ -239,7 +240,7 @@ export const VoiceAssistantStatusBar = React.memo(({ variant = 'floating', style
 
                         <View style={styles.rightSection}>
                             <Text style={[styles.tapToEndText, { color: statusInfo.textColor }]}>
-                                Tap to end
+                                {t('voiceStatus.tapToEnd')}
                             </Text>
                         </View>
                     </View>
