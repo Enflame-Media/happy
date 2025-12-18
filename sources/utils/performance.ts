@@ -449,3 +449,303 @@ export function useScrollPerformance(
 
     return trackerRef.current.onScroll;
 }
+
+// ============================================================================
+// JS Thread and Memory Monitoring (HAP-381)
+// ============================================================================
+
+// Thresholds for JS thread blocking detection
+const JS_BLOCKING_THRESHOLD = 50; // 50ms = 3 dropped frames
+const JS_CRITICAL_BLOCKING_THRESHOLD = 200; // 200ms = severe blocking
+const RESOURCE_SAMPLE_INTERVAL = 30000; // Sample every 30 seconds
+const BLOCKING_REPORT_COOLDOWN = 5000; // Don't report blocking more than once per 5s
+
+/**
+ * Resource usage metrics captured during sampling
+ */
+interface ResourceMetrics {
+    timestamp: number;
+    jsHeapUsedMB: number | null; // Only available on web (Chrome)
+    jsHeapTotalMB: number | null;
+    platform: string;
+}
+
+/**
+ * JS thread blocking event data
+ */
+interface BlockingEvent {
+    duration: number;
+    timestamp: number;
+    severity: 'warning' | 'critical';
+}
+
+// Module-level state for resource monitoring
+let resourceMonitorInterval: ReturnType<typeof setInterval> | null = null;
+let jsBlockingMonitorRunning = false;
+let lastBlockingReport = 0;
+const recentBlockingEvents: BlockingEvent[] = [];
+const MAX_BLOCKING_EVENTS = 50;
+
+// Store resource metrics for trend analysis
+const resourceHistory: ResourceMetrics[] = [];
+const MAX_RESOURCE_HISTORY = 60; // Keep ~30 minutes of samples at 30s intervals
+
+/**
+ * Get current memory usage if available.
+ * Only works on web (Chrome) via non-standard performance.memory API.
+ * Returns null on native platforms.
+ *
+ * @platform Web (Chrome only)
+ */
+export function getMemoryUsage(): { usedMB: number; totalMB: number } | null {
+    // Check for web platform with Chrome's performance.memory
+    if (Platform.OS === 'web') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const perf = performance as any;
+        if (perf.memory) {
+            return {
+                usedMB: Math.round((perf.memory.usedJSHeapSize / (1024 * 1024)) * 10) / 10,
+                totalMB: Math.round((perf.memory.totalJSHeapSize / (1024 * 1024)) * 10) / 10,
+            };
+        }
+    }
+
+    // Not available on native platforms (iOS/Android)
+    // React Native doesn't expose heap metrics to JS
+    return null;
+}
+
+/**
+ * Sample current resource usage and store for trend analysis.
+ * Reports to analytics if significant changes detected.
+ */
+function sampleResourceUsage(): void {
+    const memory = getMemoryUsage();
+    const now = Date.now();
+
+    const metrics: ResourceMetrics = {
+        timestamp: now,
+        jsHeapUsedMB: memory?.usedMB ?? null,
+        jsHeapTotalMB: memory?.totalMB ?? null,
+        platform: Platform.OS,
+    };
+
+    // Add to history
+    resourceHistory.push(metrics);
+    if (resourceHistory.length > MAX_RESOURCE_HISTORY) {
+        resourceHistory.shift();
+    }
+
+    // Only report to analytics if we have memory data (web only)
+    if (memory) {
+        // Calculate memory growth rate if we have history
+        let memoryGrowthPercent: number | null = null;
+        if (resourceHistory.length >= 10) {
+            const oldSample = resourceHistory[resourceHistory.length - 10];
+            if (oldSample.jsHeapUsedMB !== null && metrics.jsHeapUsedMB !== null) {
+                memoryGrowthPercent = Math.round(
+                    ((metrics.jsHeapUsedMB - oldSample.jsHeapUsedMB) / oldSample.jsHeapUsedMB) * 100
+                );
+            }
+        }
+
+        scheduleIdleReport(() => {
+            tracking?.capture('perf_resource_sample', {
+                js_heap_used_mb: metrics.jsHeapUsedMB,
+                js_heap_total_mb: metrics.jsHeapTotalMB,
+                memory_growth_percent: memoryGrowthPercent,
+                sample_count: resourceHistory.length,
+                platform: Platform.OS,
+            });
+        });
+    }
+}
+
+/**
+ * Detect JS thread blocking using timing loops.
+ * Measures how long between expected and actual callback execution.
+ *
+ * Uses requestAnimationFrame on web, InteractionManager timing on native.
+ */
+function runBlockingDetectionCycle(): void {
+    if (!jsBlockingMonitorRunning) {
+        return;
+    }
+
+    const expectedInterval = 16; // ~60fps target
+    const startTime = performance.now();
+
+    const checkBlocking = () => {
+        if (!jsBlockingMonitorRunning) {
+            return;
+        }
+
+        const elapsed = performance.now() - startTime;
+
+        // If significantly more time passed than expected, JS thread was blocked
+        if (elapsed > JS_BLOCKING_THRESHOLD) {
+            const now = Date.now();
+
+            // Avoid spam: don't report if we reported recently
+            if (now - lastBlockingReport > BLOCKING_REPORT_COOLDOWN) {
+                lastBlockingReport = now;
+                const severity = elapsed > JS_CRITICAL_BLOCKING_THRESHOLD ? 'critical' : 'warning';
+
+                const event: BlockingEvent = {
+                    duration: Math.round(elapsed),
+                    timestamp: now,
+                    severity,
+                };
+
+                recentBlockingEvents.push(event);
+                if (recentBlockingEvents.length > MAX_BLOCKING_EVENTS) {
+                    recentBlockingEvents.shift();
+                }
+
+                scheduleIdleReport(() => {
+                    tracking?.capture('perf_js_blocking', {
+                        duration_ms: event.duration,
+                        severity,
+                        dropped_frames: Math.floor(elapsed / 16),
+                        platform: Platform.OS,
+                    });
+
+                    console.warn(
+                        `[Performance] JS thread blocked for ${event.duration}ms (${severity})`
+                    );
+                });
+            }
+        }
+
+        // Schedule next detection cycle
+        if (Platform.OS === 'web') {
+            requestAnimationFrame(() => {
+                setTimeout(() => runBlockingDetectionCycle(), expectedInterval);
+            });
+        } else {
+            setTimeout(() => runBlockingDetectionCycle(), expectedInterval);
+        }
+    };
+
+    // Use platform-appropriate scheduling
+    if (Platform.OS === 'web') {
+        requestAnimationFrame(checkBlocking);
+    } else {
+        // On native, use InteractionManager to only detect blocking when not animating
+        InteractionManager.runAfterInteractions(() => {
+            checkBlocking();
+        });
+    }
+}
+
+/**
+ * Start resource monitoring.
+ * Begins periodic sampling of memory (where available) and JS thread blocking detection.
+ *
+ * Call once at app startup (e.g., in _layout.tsx).
+ */
+export function startResourceMonitoring(): void {
+    if (resourceMonitorInterval !== null) {
+        console.log('[Performance] Resource monitoring already running');
+        return;
+    }
+
+    console.log('[Performance] Starting resource monitoring');
+
+    // Start periodic resource sampling
+    resourceMonitorInterval = setInterval(sampleResourceUsage, RESOURCE_SAMPLE_INTERVAL);
+
+    // Take initial sample
+    sampleResourceUsage();
+
+    // Start JS blocking detection
+    jsBlockingMonitorRunning = true;
+    runBlockingDetectionCycle();
+}
+
+/**
+ * Stop resource monitoring.
+ * Call on app shutdown or when monitoring is no longer needed.
+ */
+export function stopResourceMonitoring(): void {
+    console.log('[Performance] Stopping resource monitoring');
+
+    if (resourceMonitorInterval !== null) {
+        clearInterval(resourceMonitorInterval);
+        resourceMonitorInterval = null;
+    }
+
+    jsBlockingMonitorRunning = false;
+}
+
+/**
+ * Get recent blocking events for debugging/display.
+ * Returns the last N blocking events detected.
+ */
+export function getRecentBlockingEvents(): readonly BlockingEvent[] {
+    return [...recentBlockingEvents];
+}
+
+/**
+ * Get resource usage history for trend visualization.
+ * Returns samples collected over time (up to 30 minutes).
+ */
+export function getResourceHistory(): readonly ResourceMetrics[] {
+    return [...resourceHistory];
+}
+
+/**
+ * Report a summary of recent blocking events and resource trends.
+ * Call periodically (e.g., on app background) to capture overall health.
+ */
+export function reportResourceHealth(): void {
+    const blockingCount = recentBlockingEvents.length;
+    const criticalCount = recentBlockingEvents.filter(e => e.severity === 'critical').length;
+    const memory = getMemoryUsage();
+
+    // Calculate average blocking duration
+    let avgBlockingMs = 0;
+    if (blockingCount > 0) {
+        avgBlockingMs = Math.round(
+            recentBlockingEvents.reduce((sum, e) => sum + e.duration, 0) / blockingCount
+        );
+    }
+
+    scheduleIdleReport(() => {
+        tracking?.capture('perf_resource_health', {
+            blocking_events_total: blockingCount,
+            blocking_events_critical: criticalCount,
+            blocking_avg_duration_ms: avgBlockingMs,
+            js_heap_used_mb: memory?.usedMB ?? null,
+            js_heap_total_mb: memory?.totalMB ?? null,
+            samples_collected: resourceHistory.length,
+            platform: Platform.OS,
+        });
+
+        console.log(
+            `[Performance] Resource Health: ${blockingCount} blocking events ` +
+            `(${criticalCount} critical), ` +
+            `Memory: ${memory ? `${memory.usedMB}/${memory.totalMB} MB` : 'N/A (native)'}`
+        );
+    });
+}
+
+/**
+ * React hook to initialize resource monitoring on mount and cleanup on unmount.
+ * Use this in your root layout component.
+ *
+ * @example
+ * // In _layout.tsx
+ * useResourceMonitoring();
+ */
+export function useResourceMonitoring(): void {
+    React.useEffect(() => {
+        startResourceMonitoring();
+
+        return () => {
+            // Report final health before stopping
+            reportResourceHealth();
+            stopResourceMonitoring();
+        };
+    }, []);
+}
