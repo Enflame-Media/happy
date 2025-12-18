@@ -1026,7 +1026,22 @@ export const pt: TranslationStructure = {
         // Slide 5: Get Started
         startTitle: 'Pronto para Programar?',
         startDescription: 'Conecte seu primeiro terminal e comece a programar com assistência de IA',
-    }
+    },
+
+    bulkRestore: {
+        // Bulk restore feature (HAP-393)
+        select: 'Selecionar',
+        selectSessions: 'Selecionar sessões',
+        selectedCount: ({ count }: { count: number }) => `${count} selecionada${count !== 1 ? 's' : ''}`,
+        selectAll: 'Selecionar todas',
+        restoreSelected: ({ count }: { count: number }) => `Restaurar (${count})`,
+        restoring: 'Restaurando sessões...',
+        cancelling: 'Cancelando...',
+        complete: 'Restauração concluída',
+        results: 'Resultados',
+        progressText: ({ completed, total }: { completed: number; total: number }) => `${completed} de ${total}`,
+        cancelledByUser: 'Cancelado pelo usuário',
+    },
 } as const;
 
 export type TranslationsPt = typeof pt;

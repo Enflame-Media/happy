@@ -1026,7 +1026,22 @@ export const ca: TranslationStructure = {
         // Slide 5: Get Started
         startTitle: 'Llest per Programar?',
         startDescription: 'Connecta el teu primer terminal i comença a programar amb assistència d\'IA',
-    }
+    },
+
+    bulkRestore: {
+        // Bulk restore feature (HAP-393)
+        select: 'Seleccionar',
+        selectSessions: 'Seleccionar sessions',
+        selectedCount: ({ count }: { count: number }) => `${count} seleccionada${count !== 1 ? 'es' : ''}`,
+        selectAll: 'Seleccionar tot',
+        restoreSelected: ({ count }: { count: number }) => `Restaurar (${count})`,
+        restoring: 'Restaurant sessions...',
+        cancelling: 'Cancel·lant...',
+        complete: 'Restauració completa',
+        results: 'Resultats',
+        progressText: ({ completed, total }: { completed: number; total: number }) => `${completed} de ${total}`,
+        cancelledByUser: 'Cancel·lat per l\'usuari',
+    },
 } as const;
 
 export type TranslationsCa = typeof ca;

@@ -1050,7 +1050,22 @@ export const pl: TranslationStructure = {
         // Slide 5: Get Started
         startTitle: 'Gotowy do Kodowania?',
         startDescription: 'Połącz swój pierwszy terminal i zacznij kodować z asystentem AI',
-    }
+    },
+
+    bulkRestore: {
+        // Bulk restore feature (HAP-393)
+        select: 'Wybierz',
+        selectSessions: 'Wybierz sesje',
+        selectedCount: ({ count }: { count: number }) => `${count} ${plural({ count, one: 'wybrana', few: 'wybrane', many: 'wybranych' })}`,
+        selectAll: 'Wybierz wszystkie',
+        restoreSelected: ({ count }: { count: number }) => `Przywróć (${count})`,
+        restoring: 'Przywracanie sesji...',
+        cancelling: 'Anulowanie...',
+        complete: 'Przywracanie zakończone',
+        results: 'Wyniki',
+        progressText: ({ completed, total }: { completed: number; total: number }) => `${completed} z ${total}`,
+        cancelledByUser: 'Anulowane przez użytkownika',
+    },
 } as const;
 
 export type TranslationsPl = typeof pl;

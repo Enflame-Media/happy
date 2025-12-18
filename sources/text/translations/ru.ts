@@ -1049,7 +1049,22 @@ export const ru: TranslationStructure = {
         // Slide 5: Get Started
         startTitle: 'Готовы Программировать?',
         startDescription: 'Подключите ваш первый терминал и начните программировать с помощью ИИ-ассистента',
-    }
+    },
+
+    bulkRestore: {
+        // Bulk restore feature (HAP-393)
+        select: 'Выбрать',
+        selectSessions: 'Выбрать сессии',
+        selectedCount: ({ count }: { count: number }) => `${count} ${plural({ count, one: 'выбрана', few: 'выбрано', many: 'выбрано' })}`,
+        selectAll: 'Выбрать все',
+        restoreSelected: ({ count }: { count: number }) => `Восстановить (${count})`,
+        restoring: 'Восстановление сессий...',
+        cancelling: 'Отмена...',
+        complete: 'Восстановление завершено',
+        results: 'Результаты',
+        progressText: ({ completed, total }: { completed: number; total: number }) => `${completed} из ${total}`,
+        cancelledByUser: 'Отменено пользователем',
+    },
 } as const;
 
 export type TranslationsRu = typeof ru;

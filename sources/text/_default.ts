@@ -1028,7 +1028,22 @@ export const en = {
         // Slide 5: Get Started
         startTitle: 'Ready to Code?',
         startDescription: 'Connect your first terminal and start coding with AI assistance',
-    }
+    },
+
+    bulkRestore: {
+        // Bulk restore feature (HAP-393)
+        select: 'Select',
+        selectSessions: 'Select Sessions',
+        selectedCount: ({ count }: { count: number }) => `${count} selected`,
+        selectAll: 'Select All',
+        restoreSelected: ({ count }: { count: number }) => `Restore (${count})`,
+        restoring: 'Restoring Sessions...',
+        cancelling: 'Cancelling...',
+        complete: 'Restore Complete',
+        results: 'Results',
+        progressText: ({ completed, total }: { completed: number; total: number }) => `${completed} of ${total}`,
+        cancelledByUser: 'Cancelled by user',
+    },
 } as const;
 
 export type Translations = typeof en;

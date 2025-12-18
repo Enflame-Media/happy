@@ -1028,5 +1028,20 @@ export const zhHans: TranslationStructure = {
         // Slide 5: Get Started
         startTitle: '准备好开始编程了吗？',
         startDescription: '连接您的第一个终端，开始使用 AI 辅助编程',
-    }
+    },
+
+    bulkRestore: {
+        // Bulk restore feature (HAP-393)
+        select: '选择',
+        selectSessions: '选择会话',
+        selectedCount: ({ count }: { count: number }) => `已选择 ${count} 个`,
+        selectAll: '全选',
+        restoreSelected: ({ count }: { count: number }) => `恢复 (${count})`,
+        restoring: '正在恢复会话...',
+        cancelling: '正在取消...',
+        complete: '恢复完成',
+        results: '结果',
+        progressText: ({ completed, total }: { completed: number; total: number }) => `${completed} / ${total}`,
+        cancelledByUser: '用户已取消',
+    },
 } as const;

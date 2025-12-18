@@ -6,13 +6,20 @@ import { SessionsList } from './SessionsList';
 import { EmptyMainScreen } from './EmptyMainScreen';
 import { FAB } from './FAB';
 import { useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
-import { useSocketStatus } from '@/sync/storage';
+import { useSocketStatus, useAllSessions, useAllMachines } from '@/sync/storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { StatusDot } from './StatusDot';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
+import { useMultiSelect } from '@/hooks/useMultiSelect';
+import { MultiSelectProvider } from './MultiSelectContext';
+import { MultiSelectActionBar } from './MultiSelectActionBar';
+import { BulkRestoreProgress } from './BulkRestoreProgress';
+import { useBulkSessionRestore } from '@/hooks/useBulkSessionRestore';
+import { Session, Machine } from '@/sync/storageTypes';
+import { isMachineOnline } from '@/utils/machineUtils';
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -64,6 +71,12 @@ const stylesheet = StyleSheet.create((theme) => ({
         fontWeight: '600',
         ...Typography.default('semiBold'),
     },
+    selectModeTitle: {
+        fontSize: 17,
+        color: theme.colors.header.tint,
+        fontWeight: '600',
+        ...Typography.default('semiBold'),
+    },
     statusContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -93,11 +106,32 @@ const stylesheet = StyleSheet.create((theme) => ({
     statusDefault: {
         color: theme.colors.status.default,
     },
+    cancelText: {
+        fontSize: 16,
+        color: theme.colors.textLink,
+        ...Typography.default(),
+    },
+    selectText: {
+        fontSize: 16,
+        color: theme.colors.textLink,
+        ...Typography.default(),
+    },
 }));
 
-function HeaderTitle() {
+function HeaderTitle({ isSelectMode }: { isSelectMode: boolean }) {
     const socketStatus = useSocketStatus();
     const styles = stylesheet;
+
+    // In select mode, show different title
+    if (isSelectMode) {
+        return (
+            <View style={styles.titleContainer}>
+                <Text style={styles.selectModeTitle}>
+                    {t('bulkRestore.selectSessions')}
+                </Text>
+            </View>
+        );
+    }
 
     const getConnectionStatus = () => {
         const { status } = socketStatus;
@@ -167,9 +201,15 @@ function HeaderTitle() {
     );
 }
 
-function HeaderLeft() {
+function HeaderLeft({ isSelectMode }: { isSelectMode: boolean }) {
     const styles = stylesheet;
     const { theme } = useUnistyles();
+
+    // In select mode, don't show logo
+    if (isSelectMode) {
+        return <View style={styles.logoContainer} />;
+    }
+
     return (
         <View style={styles.logoContainer}>
             <Image
@@ -182,57 +222,201 @@ function HeaderLeft() {
     );
 }
 
-function HeaderRight() {
+interface HeaderRightProps {
+    isSelectMode: boolean;
+    hasEligibleSessions: boolean;
+    onEnterSelectMode: () => void;
+    onExitSelectMode: () => void;
+}
+
+function HeaderRight({ isSelectMode, hasEligibleSessions, onEnterSelectMode, onExitSelectMode }: HeaderRightProps) {
     const router = useRouter();
     const styles = stylesheet;
     const { theme } = useUnistyles();
 
+    if (isSelectMode) {
+        return (
+            <Pressable
+                onPress={onExitSelectMode}
+                hitSlop={15}
+                style={styles.headerButton}
+            >
+                <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+            </Pressable>
+        );
+    }
+
     return (
-        <Pressable
-            onPress={() => router.push('/new')}
-            hitSlop={15}
-            style={styles.headerButton}
-        >
-            <Ionicons name="add-outline" size={28} color={theme.colors.header.tint} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {/* Select button - only show if there are eligible sessions */}
+            {hasEligibleSessions && (
+                <Pressable
+                    onPress={onEnterSelectMode}
+                    hitSlop={15}
+                    style={styles.headerButton}
+                >
+                    <Text style={styles.selectText}>{t('bulkRestore.select')}</Text>
+                </Pressable>
+            )}
+            {/* Add new session button */}
+            <Pressable
+                onPress={() => router.push('/new')}
+                hitSlop={15}
+                style={styles.headerButton}
+            >
+                <Ionicons name="add-outline" size={28} color={theme.colors.header.tint} />
+            </Pressable>
+        </View>
     );
+}
+
+/**
+ * Filters sessions to find those eligible for bulk restore:
+ * - Must be archived (not active)
+ * - Must be Claude sessions (not Codex)
+ * - Must have machine info for restore
+ */
+function getEligibleSessions(sessions: Session[], machines: Machine[]): Session[] {
+    return sessions.filter(session => {
+        // Must be inactive (archived)
+        if (session.active) return false;
+
+        // Must be Claude session (Codex doesn't support --resume)
+        const isClaudeSession = !session.metadata?.flavor || session.metadata.flavor === 'claude';
+        if (!isClaudeSession) return false;
+
+        // Must have machine info
+        if (!session.metadata?.machineId || !session.metadata?.path) return false;
+
+        // Check if machine exists and is online
+        const machine = machines.find(m => m.id === session.metadata?.machineId);
+        if (!machine || !isMachineOnline(machine)) return false;
+
+        return true;
+    });
 }
 
 export const SessionsListWrapper = React.memo(() => {
     const { theme } = useUnistyles();
     const sessionListViewData = useVisibleSessionListViewData();
+    const allSessions = useAllSessions();
+    const machines = useAllMachines();
     const styles = stylesheet;
 
+    // Multi-select state
+    const multiSelect = useMultiSelect<string>();
+    const {
+        isSelectMode,
+        selectedIds,
+        selectedCount,
+        enterSelectMode,
+        exitSelectMode,
+        toggleItem,
+        isSelected,
+        selectAll,
+        deselectAll,
+    } = multiSelect;
+
+    // Bulk restore hook
+    const { restore, progress, isRestoring, cancel, reset } = useBulkSessionRestore();
+
+    // Get eligible sessions for bulk restore
+    const eligibleSessions = React.useMemo(() => {
+        return getEligibleSessions(allSessions, machines);
+    }, [allSessions, machines]);
+
+    const hasEligibleSessions = eligibleSessions.length > 0;
+
+    // Handle select all - select all eligible sessions
+    const handleSelectAll = React.useCallback(() => {
+        const eligibleIds = eligibleSessions.map(s => s.id);
+        selectAll(eligibleIds);
+    }, [eligibleSessions, selectAll]);
+
+    // Handle restore action
+    const handleRestore = React.useCallback(async () => {
+        const sessionsToRestore = eligibleSessions.filter(s => selectedIds.has(s.id));
+        if (sessionsToRestore.length === 0) return;
+
+        await restore(sessionsToRestore);
+    }, [eligibleSessions, selectedIds, restore]);
+
+    // Handle progress modal close
+    const handleProgressClose = React.useCallback(() => {
+        reset();
+        exitSelectMode();
+    }, [reset, exitSelectMode]);
+
+    // Create context value for multi-select
+    const multiSelectContextValue = React.useMemo(() => ({
+        isSelectMode,
+        selectedIds,
+        toggleItem,
+        isSelected,
+        enterSelectMode,
+        exitSelectMode,
+        selectAll: (sessions: Session[]) => selectAll(sessions.map(s => s.id)),
+        deselectAll,
+        selectedCount,
+    }), [isSelectMode, selectedIds, toggleItem, isSelected, enterSelectMode, exitSelectMode, selectAll, deselectAll, selectedCount]);
+
     return (
-        <View style={styles.container}>
-            <View style={{ backgroundColor: theme.colors.groupped.background }}>
-                <Header
-                    title={<HeaderTitle />}
-                    headerRight={() => <HeaderRight />}
-                    headerLeft={() => <HeaderLeft />}
-                    headerShadowVisible={false}
-                    headerTransparent={true}
+        <MultiSelectProvider value={multiSelectContextValue}>
+            <View style={styles.container}>
+                <View style={{ backgroundColor: theme.colors.groupped.background }}>
+                    <Header
+                        title={<HeaderTitle isSelectMode={isSelectMode} />}
+                        headerRight={() => (
+                            <HeaderRight
+                                isSelectMode={isSelectMode}
+                                hasEligibleSessions={hasEligibleSessions}
+                                onEnterSelectMode={enterSelectMode}
+                                onExitSelectMode={exitSelectMode}
+                            />
+                        )}
+                        headerLeft={() => <HeaderLeft isSelectMode={isSelectMode} />}
+                        headerShadowVisible={false}
+                        headerTransparent={true}
+                    />
+                </View>
+
+                {sessionListViewData === null ? (
+                    <View style={styles.loadingContainerWrapper}>
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+                        </View>
+                    </View>
+                ) : sessionListViewData.length === 0 ? (
+                    <View style={styles.emptyStateContainer}>
+                        <View style={styles.emptyStateContentContainer}>
+                            <EmptyMainScreen />
+                        </View>
+                    </View>
+                ) : (
+                    <>
+                        <SessionsList eligibleSessionIds={new Set(eligibleSessions.map(s => s.id))} />
+                        {/* Only show FAB when not in select mode */}
+                        {!isSelectMode && <FAB />}
+                    </>
+                )}
+
+                {/* Multi-select action bar */}
+                <MultiSelectActionBar
+                    visible={isSelectMode}
+                    selectedCount={selectedCount}
+                    onRestore={handleRestore}
+                    onSelectAll={handleSelectAll}
+                    isRestoring={isRestoring}
+                />
+
+                {/* Bulk restore progress modal */}
+                <BulkRestoreProgress
+                    progress={progress}
+                    isRestoring={isRestoring}
+                    onCancel={cancel}
+                    onClose={handleProgressClose}
                 />
             </View>
-            
-            {sessionListViewData === null ? (
-                <View style={styles.loadingContainerWrapper}>
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="small" color={theme.colors.textSecondary} />
-                    </View>
-                </View>
-            ) : sessionListViewData.length === 0 ? (
-                <View style={styles.emptyStateContainer}>
-                    <View style={styles.emptyStateContentContainer}>
-                        <EmptyMainScreen />
-                    </View>
-                </View>
-            ) : (
-                <>
-                    <SessionsList />
-                    <FAB />
-                </>
-            )}
-        </View>
+        </MultiSelectProvider>
     );
 });

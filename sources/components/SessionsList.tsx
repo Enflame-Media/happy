@@ -24,6 +24,8 @@ import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { useSessionContextMenu } from '@/hooks/useSessionContextMenu';
 import { QuickStartCard } from './QuickStartCard';
 import { SwipeableSessionRow } from './SwipeableSessionRow';
+import { SelectableCheckbox } from './SelectableCheckbox';
+import { useMultiSelectContext } from './MultiSelectContext';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpolate } from 'react-native-reanimated';
 
 // Item height constants for getItemLayout optimization
@@ -80,7 +82,12 @@ const stylesheet = StyleSheet.create((theme) => ({
         marginTop: 2,
         ...Typography.default(),
     },
+    sessionItemContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     sessionItem: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
@@ -213,9 +220,17 @@ const stylesheet = StyleSheet.create((theme) => ({
     sessionMessagePreviewContainer: {
         overflow: 'hidden',
     },
+    checkboxContainer: {
+        marginLeft: 8,
+    },
 }));
 
-export function SessionsList() {
+interface SessionsListProps {
+    /** Set of session IDs eligible for bulk restore (archived Claude sessions with online machines) */
+    eligibleSessionIds?: Set<string>;
+}
+
+export function SessionsList({ eligibleSessionIds }: SessionsListProps) {
     const styles = stylesheet;
     const safeArea = useSafeAreaInsets();
     const data = useVisibleSessionListViewData();
@@ -223,12 +238,14 @@ export function SessionsList() {
     const isTablet = useIsTablet();
     const compactSessionView = useSetting('compactSessionView');
     const selectable = isTablet;
+    const { isSelectMode } = useMultiSelectContext();
 
     // Memoize contentContainerStyle to prevent FlatList re-renders
+    // Add extra padding when in select mode for the action bar
     const contentContainerStyle = React.useMemo(() => ({
-        paddingBottom: safeArea.bottom + 128,
+        paddingBottom: safeArea.bottom + (isSelectMode ? 180 : 128),
         maxWidth: layout.maxWidth
-    }), [safeArea.bottom]);
+    }), [safeArea.bottom, isSelectMode]);
 
     const dataWithSelected = selectable ? React.useMemo(() => {
         return data?.map(item => ({
@@ -378,19 +395,23 @@ export function SessionsList() {
                 const isLast = nextItem?.type === 'header' || nextItem == null || nextItem?.type === 'active-sessions';
                 const isSingle = isFirst && isLast;
 
+                // Check if session is eligible for multi-select (archived Claude session with online machine)
+                const isEligible = eligibleSessionIds?.has(item.session.id) ?? false;
+
                 return (
-                    <SwipeableSessionRow session={item.session}>
+                    <SwipeableSessionRow session={item.session} disabled={isSelectMode}>
                         <SessionItem
                             session={item.session}
                             selected={item.selected}
                             isFirst={isFirst}
                             isLast={isLast}
                             isSingle={isSingle}
+                            isEligibleForSelect={isEligible}
                         />
                     </SwipeableSessionRow>
                 );
         }
-    }, [pathname, dataWithSelected, compactSessionView, isTablet, styles]);
+    }, [pathname, dataWithSelected, compactSessionView, isTablet, styles, isSelectMode, eligibleSessionIds]);
 
 
     // Remove this section as we'll use FlatList for all items now
@@ -434,12 +455,13 @@ export function SessionsList() {
  * Collapsed state: Shows avatar, title, and status dot only (56px)
  * Expanded state: Shows full details including subtitle and context meter (88px)
  */
-const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }: {
+const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle, isEligibleForSelect }: {
     session: Session;
     selected?: boolean;
     isFirst?: boolean;
     isLast?: boolean;
     isSingle?: boolean;
+    isEligibleForSelect?: boolean;
 }) => {
     const styles = stylesheet;
     const sessionStatus = useSessionStatus(session);
@@ -449,6 +471,7 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
     const isTablet = useIsTablet();
     const { showContextMenu } = useSessionContextMenu(session);
     const { messages } = useSessionMessages(session.id);
+    const { isSelectMode, isSelected, toggleItem } = useMultiSelectContext();
 
     // Get last user message preview for session identification
     const messagePreview = React.useMemo(() => {
@@ -469,8 +492,20 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
         : sessionStatus.state === 'permission_required' ? styles.sessionItemPermission
         : undefined;
 
+    // Check if this session is selected in multi-select mode
+    const isSessionSelected = isSelectMode && isSelected(session.id);
+
     // Toggle expand/collapse with animation
     const handlePress = React.useCallback(() => {
+        // In select mode, toggle selection for eligible sessions
+        if (isSelectMode) {
+            if (isEligibleForSelect) {
+                toggleItem(session.id);
+            }
+            // Non-eligible sessions do nothing in select mode
+            return;
+        }
+
         if (isTablet) {
             // On tablet, always navigate directly
             navigateToSession(session.id);
@@ -486,13 +521,27 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
                 });
             }
         }
-    }, [isTablet, isExpanded, navigateToSession, session.id, expandProgress]);
+    }, [isSelectMode, isEligibleForSelect, toggleItem, session.id, isTablet, isExpanded, navigateToSession, expandProgress]);
 
     const handlePressIn = React.useCallback(() => {
+        // Disable pressIn behavior in select mode
+        if (isSelectMode) return;
+
         if (isTablet) {
             navigateToSession(session.id);
         }
-    }, [isTablet, navigateToSession, session.id]);
+    }, [isSelectMode, isTablet, navigateToSession, session.id]);
+
+    // Handle long press - in select mode, enter long-press doesn't trigger context menu
+    const handleLongPress = React.useCallback(() => {
+        if (isSelectMode) return;
+        showContextMenu();
+    }, [isSelectMode, showContextMenu]);
+
+    // Handle checkbox toggle
+    const handleCheckboxToggle = React.useCallback(() => {
+        toggleItem(session.id);
+    }, [toggleItem, session.id]);
 
     // Animated container height
     const containerAnimatedStyle = useAnimatedStyle(() => {
@@ -536,100 +585,113 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
     });
 
     return (
-        <Animated.View
-            style={[
-                styles.sessionItem,
-                selected && styles.sessionItemSelected,
-                activeStateStyle,
-                isSingle ? styles.sessionItemSingle :
-                    isFirst ? styles.sessionItemFirst :
-                        isLast ? styles.sessionItemLast : {},
-                containerAnimatedStyle
-            ]}
-        >
-            <Pressable
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
-                onPressIn={handlePressIn}
-                onPress={handlePress}
-                onLongPress={showContextMenu}
-                delayLongPress={500}
+        <View style={styles.sessionItemContainer}>
+            {/* Checkbox for multi-select mode */}
+            <View style={styles.checkboxContainer}>
+                <SelectableCheckbox
+                    visible={isSelectMode}
+                    selected={isSessionSelected}
+                    onToggle={handleCheckboxToggle}
+                    disabled={!isEligibleForSelect}
+                />
+            </View>
+
+            <Animated.View
+                style={[
+                    styles.sessionItem,
+                    selected && styles.sessionItemSelected,
+                    activeStateStyle,
+                    isSingle ? styles.sessionItemSingle :
+                        isFirst ? styles.sessionItemFirst :
+                            isLast ? styles.sessionItemLast : {},
+                    containerAnimatedStyle
+                ]}
             >
-                <View style={styles.avatarContainer}>
-                    <Avatar id={avatarId} size={48} monochrome={!sessionStatus.isConnected} flavor={session.metadata?.flavor} />
-                    {session.draft && (
-                        <View style={styles.draftIconContainer}>
-                            <Ionicons
-                                name="create-outline"
-                                size={12}
-                                style={styles.draftIconOverlay}
-                            />
-                        </View>
-                    )}
-                </View>
-                <View style={styles.sessionContent}>
-                    {/* Title line */}
-                    <View style={styles.sessionTitleRow}>
-                        <Text style={[
-                            styles.sessionTitle,
-                            sessionStatus.isConnected ? styles.sessionTitleConnected : styles.sessionTitleDisconnected
-                        ]} numberOfLines={1}>
-                            {sessionName}
-                        </Text>
-                        {/* Expand chevron - shown when collapsed */}
-                        <Animated.View style={[styles.expandChevron, chevronAnimatedStyle]}>
-                            <Ionicons
-                                name="chevron-forward"
-                                size={14}
-                                color={styles.sessionTitleDisconnected.color}
-                            />
-                        </Animated.View>
-                    </View>
-
-                    {/* Message preview - shown when collapsed for quick identification */}
-                    {messagePreview && (
-                        <Animated.View style={[styles.sessionMessagePreviewContainer, messagePreviewAnimatedStyle]}>
-                            <Text style={styles.sessionMessagePreview} numberOfLines={1}>
-                                "{messagePreview}"
-                            </Text>
-                        </Animated.View>
-                    )}
-
-                    {/* Subtitle line - animated visibility */}
-                    <Animated.View style={[styles.sessionSubtitleContainer, subtitleAnimatedStyle]}>
-                        <Text style={styles.sessionSubtitle} numberOfLines={1}>
-                            {sessionSubtitle}
-                        </Text>
-                    </Animated.View>
-
-                    {/* Status line with dot */}
-                    <View style={styles.statusRow}>
-                        <View style={styles.statusRowLeft}>
-                            <View style={styles.statusDotContainer}>
-                                <StatusDot color={sessionStatus.statusDotColor} isPulsing={sessionStatus.isPulsing} />
-                            </View>
-                            <Text style={[
-                                styles.statusText,
-                                { color: sessionStatus.statusColor }
-                            ]}>
-                                {sessionStatus.statusText}
-                            </Text>
-                        </View>
-
-                        {/* Status indicators on the right side - animated visibility */}
-                        <Animated.View style={[styles.statusIndicators, indicatorsAnimatedStyle]}>
-                            {/* Context usage indicator with sparkline (HAP-344) */}
-                            {session.latestUsage?.contextSize != null && session.latestUsage.contextSize > 0 && (
-                                <ContextMeter
-                                    contextSize={session.latestUsage.contextSize}
-                                    usageHistory={session.usageHistory}
-                                    showSparkline={true}
+                <Pressable
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                    onPressIn={handlePressIn}
+                    onPress={handlePress}
+                    onLongPress={handleLongPress}
+                    delayLongPress={500}
+                >
+                    <View style={styles.avatarContainer}>
+                        <Avatar id={avatarId} size={48} monochrome={!sessionStatus.isConnected} flavor={session.metadata?.flavor} />
+                        {session.draft && (
+                            <View style={styles.draftIconContainer}>
+                                <Ionicons
+                                    name="create-outline"
+                                    size={12}
+                                    style={styles.draftIconOverlay}
                                 />
-                            )}
-                        </Animated.View>
+                            </View>
+                        )}
                     </View>
-                </View>
-            </Pressable>
-        </Animated.View>
+                    <View style={styles.sessionContent}>
+                        {/* Title line */}
+                        <View style={styles.sessionTitleRow}>
+                            <Text style={[
+                                styles.sessionTitle,
+                                sessionStatus.isConnected ? styles.sessionTitleConnected : styles.sessionTitleDisconnected
+                            ]} numberOfLines={1}>
+                                {sessionName}
+                            </Text>
+                            {/* Expand chevron - shown when collapsed and not in select mode */}
+                            {!isSelectMode && (
+                                <Animated.View style={[styles.expandChevron, chevronAnimatedStyle]}>
+                                    <Ionicons
+                                        name="chevron-forward"
+                                        size={14}
+                                        color={styles.sessionTitleDisconnected.color}
+                                    />
+                                </Animated.View>
+                            )}
+                        </View>
+
+                        {/* Message preview - shown when collapsed for quick identification */}
+                        {messagePreview && (
+                            <Animated.View style={[styles.sessionMessagePreviewContainer, messagePreviewAnimatedStyle]}>
+                                <Text style={styles.sessionMessagePreview} numberOfLines={1}>
+                                    "{messagePreview}"
+                                </Text>
+                            </Animated.View>
+                        )}
+
+                        {/* Subtitle line - animated visibility */}
+                        <Animated.View style={[styles.sessionSubtitleContainer, subtitleAnimatedStyle]}>
+                            <Text style={styles.sessionSubtitle} numberOfLines={1}>
+                                {sessionSubtitle}
+                            </Text>
+                        </Animated.View>
+
+                        {/* Status line with dot */}
+                        <View style={styles.statusRow}>
+                            <View style={styles.statusRowLeft}>
+                                <View style={styles.statusDotContainer}>
+                                    <StatusDot color={sessionStatus.statusDotColor} isPulsing={sessionStatus.isPulsing} />
+                                </View>
+                                <Text style={[
+                                    styles.statusText,
+                                    { color: sessionStatus.statusColor }
+                                ]}>
+                                    {sessionStatus.statusText}
+                                </Text>
+                            </View>
+
+                            {/* Status indicators on the right side - animated visibility */}
+                            <Animated.View style={[styles.statusIndicators, indicatorsAnimatedStyle]}>
+                                {/* Context usage indicator with sparkline (HAP-344) */}
+                                {session.latestUsage?.contextSize != null && session.latestUsage.contextSize > 0 && (
+                                    <ContextMeter
+                                        contextSize={session.latestUsage.contextSize}
+                                        usageHistory={session.usageHistory}
+                                        showSparkline={true}
+                                    />
+                                )}
+                            </Animated.View>
+                        </View>
+                    </View>
+                </Pressable>
+            </Animated.View>
+        </View>
     );
 });
-
