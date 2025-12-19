@@ -64,6 +64,13 @@ function arraysEqual<T>(a: T[] | undefined, b: T[] | undefined): boolean {
  */
 const MAX_CACHED_MESSAGE_SYNCS = 20;
 
+/**
+ * Maximum number of artifact data encryption keys to keep in memory.
+ * Keys for least recently used artifacts are evicted automatically.
+ * This prevents unbounded memory growth for users with many artifacts.
+ */
+const MAX_CACHED_ARTIFACT_KEYS = 100;
+
 class Sync {
 
     encryption!: Encryption;
@@ -77,9 +84,13 @@ class Sync {
         (_, sync) => sync.stop()
     );
     private sessionReceivedMessages = new Map<string, Set<string>>();
-    private sessionDataKeys = new Map<string, Uint8Array>(); // Store session data encryption keys internally
-    private machineDataKeys = new Map<string, Uint8Array>(); // Store machine data encryption keys internally
-    private artifactDataKeys = new Map<string, Uint8Array>(); // Store artifact data encryption keys internally
+    /**
+     * LRU cache for artifact data encryption keys.
+     * Keys are evicted when cache exceeds MAX_CACHED_ARTIFACT_KEYS to prevent memory leaks.
+     * When a key is evicted, the artifact data can still be re-decrypted on next access
+     * by fetching the encrypted key from the server.
+     */
+    private artifactDataKeys = new LRUCache<string, Uint8Array>(MAX_CACHED_ARTIFACT_KEYS);
     private settingsSync: InvalidateSync;
     private profileSync: InvalidateSync;
     private purchasesSync: InvalidateSync;
@@ -981,7 +992,6 @@ class Sync {
                     continue;
                 }
                 machineKeysMap.set(machine.id, decryptedKey);
-                this.machineDataKeys.set(machine.id, decryptedKey);
             } else {
                 machineKeysMap.set(machine.id, null);
             }
@@ -1098,6 +1108,9 @@ class Sync {
         let newUndoneOrder = undoneOrder;
         let newDoneOrder = doneOrder;
 
+        // Track failed keys to prevent partial state application
+        const failedKeys: string[] = [];
+
         // Process each change
         for (const change of changes) {
             try {
@@ -1134,19 +1147,33 @@ class Sync {
                     }
                 }
             } catch (error) {
-                console.error(`Failed to process todo change for key ${change.key}:`, error);
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                log.log(`📝 Failed to process todo change for key ${change.key}: ${errorMessage}`);
+                failedKeys.push(change.key);
             }
         }
 
-        // Apply the updated state
-        storage.getState().applyTodos({
-            todos: updatedTodos,
-            undoneOrder: newUndoneOrder,
-            doneOrder: newDoneOrder,
-            versions: updatedVersions
-        });
+        // If critical changes failed (todo.index), trigger full refetch without applying partial state
+        if (failedKeys.some(key => key === 'todo.index')) {
+            log.log(`📝 Critical todo change (todo.index) failed, triggering full refetch`);
+            this.todosSync.invalidate();
+            return;
+        }
 
-        log.log('📝 Applied todo socket updates successfully');
+        // Only apply state if all changes processed successfully
+        if (failedKeys.length === 0) {
+            storage.getState().applyTodos({
+                todos: updatedTodos,
+                undoneOrder: newUndoneOrder,
+                doneOrder: newDoneOrder,
+                versions: updatedVersions
+            });
+            log.log('📝 Applied todo socket updates successfully');
+        } else {
+            // Some changes failed - trigger full refetch to ensure data consistency
+            log.log(`📝 ${failedKeys.length} todo change(s) failed [${failedKeys.join(', ')}], triggering full refetch`);
+            this.todosSync.invalidate();
+        }
     }
 
     private fetchFeed = async () => {
