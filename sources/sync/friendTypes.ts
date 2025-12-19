@@ -1,35 +1,29 @@
-import * as z from 'zod';
+/**
+ * Friend-related types and schemas
+ *
+ * Re-exports core schemas from @happy/protocol for consistency,
+ * and adds app-specific relationship event schemas.
+ */
 
-//
-// Relationship Status
-//
+import { z } from 'zod';
 
-export const RelationshipStatusSchema = z.enum(['none', 'requested', 'pending', 'friend', 'rejected']);
-export type RelationshipStatus = z.infer<typeof RelationshipStatusSchema>;
+// Re-export core schemas from protocol
+export {
+    ImageRefSchema,
+    type ImageRef,
+    RelationshipStatusSchema,
+    type RelationshipStatus,
+    UserProfileSchema,
+    type UserProfile,
+} from '@happy/protocol';
 
-//
-// User Profile (Friend)
-//
-
-export const UserProfileSchema = z.object({
-    id: z.string(),
-    firstName: z.string(),
-    lastName: z.string().nullable(),
-    avatar: z.object({
-        path: z.string(),
-        url: z.string(),
-        width: z.number().optional(),
-        height: z.number().optional(),
-        thumbhash: z.string().optional()
-    }).nullable(),
-    username: z.string(),
-    bio: z.string().nullable(),
-    status: RelationshipStatusSchema
-});
-
-export type UserProfile = z.infer<typeof UserProfileSchema>;
-
-// Friend Request type no longer used in new API
+// Import schemas and types for use in this file
+import {
+    RelationshipStatusSchema,
+    UserProfileSchema,
+    type RelationshipStatus,
+    type UserProfile,
+} from '@happy/protocol';
 
 //
 // Relationship Updated Event

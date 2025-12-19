@@ -1,25 +1,18 @@
 import * as z from 'zod';
+import {
+    GitHubProfileSchema,
+    type GitHubProfile,
+    ImageRefSchema,
+    type ImageRef,
+} from '@happy/protocol';
+
+// Re-export for local use
+export { GitHubProfileSchema, ImageRefSchema };
+export type { GitHubProfile, ImageRef };
 
 //
 // Schema
 //
-
-export const GitHubProfileSchema = z.object({
-    id: z.number(),
-    login: z.string(),
-    name: z.string(),
-    avatar_url: z.string(),
-    email: z.string().optional(),
-    bio: z.string().nullable()
-});
-
-export const ImageRefSchema = z.object({
-    width: z.number(),
-    height: z.number(),
-    thumbhash: z.string(),
-    path: z.string(),
-    url: z.string()
-});
 
 export const ProfileSchema = z.object({
     id: z.string(),
@@ -31,8 +24,6 @@ export const ProfileSchema = z.object({
     connectedServices: z.array(z.string()).default([])
 });
 
-export type GitHubProfile = z.infer<typeof GitHubProfileSchema>;
-export type ImageRef = z.infer<typeof ImageRefSchema>;
 export type Profile = z.infer<typeof ProfileSchema>;
 
 //
