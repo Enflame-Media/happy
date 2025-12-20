@@ -2,7 +2,7 @@ import { backoff } from "@/utils/time";
 
 export class InvalidateSync {
     private _invalidated = false;
-    private _invalidatedDouble = false;
+    private _pendingInvalidations = 0;
     private _stopped = false;
     private _command: () => Promise<void>;
     private _pendings: (() => void)[] = [];
@@ -15,14 +15,10 @@ export class InvalidateSync {
         if (this._stopped) {
             return;
         }
+        this._pendingInvalidations++;
         if (!this._invalidated) {
             this._invalidated = true;
-            this._invalidatedDouble = false;
             this._doSync();
-        } else {
-            if (!this._invalidatedDouble) {
-                this._invalidatedDouble = true;
-            }
         }
     }
 
@@ -72,8 +68,10 @@ export class InvalidateSync {
             this._notifyPendings();
             return;
         }
-        if (this._invalidatedDouble) {
-            this._invalidatedDouble = false;
+        this._pendingInvalidations--;
+        if (this._pendingInvalidations > 0) {
+            // Collapse all pending invalidations to a single sync
+            this._pendingInvalidations = 1;
             this._doSync();
         } else {
             this._invalidated = false;
