@@ -38,16 +38,14 @@ function parseTable(lines: string[], startIndex: number): { table: MarkdownBlock
     const rows: string[][] = [];
     for (let i = 2; i < tableLines.length; i++) {
         const rowLine = tableLines[i].trim();
-        if (rowLine.startsWith('|')) {
-            const rowCells = rowLine
-                .split('|')
-                .map(cell => cell.trim())
-                .filter(cell => cell.length > 0);
+        const rowCells = rowLine
+            .split('|')
+            .map(cell => cell.trim())
+            .filter(cell => cell.length > 0);
 
-            // Include rows that contain actual content, filtering out empty rows
-            if (rowCells.length > 0) {
-                rows.push(rowCells);
-            }
+        // Include rows that contain actual content, filtering out empty rows
+        if (rowCells.length > 0) {
+            rows.push(rowCells);
         }
     }
 

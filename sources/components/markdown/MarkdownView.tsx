@@ -196,14 +196,15 @@ function RenderCodeBlock(props: { content: string, language: string | null, firs
                     </ScrollView>
                 </Animated.View>
             )}
-            {/* Web-only: Copy button appears on hover */}
-            {Platform.OS === 'web' && (
-                <View style={[style.copyButtonWrapper, isHovered && style.copyButtonWrapperVisible]}>
-                    <Pressable style={style.copyButton} onPress={copyCode}>
-                        <Text style={style.copyButtonText}>{t('common.copy')}</Text>
-                    </Pressable>
-                </View>
-            )}
+            {/* Copy button - always visible on mobile, hover-visible on web */}
+            <View style={[
+                style.copyButtonWrapper,
+                (Platform.OS === 'web' ? isHovered : true) && style.copyButtonWrapperVisible
+            ]}>
+                <Pressable style={style.copyButton} onPress={copyCode}>
+                    <Text style={style.copyButtonText}>{t('common.copy')}</Text>
+                </Pressable>
+            </View>
         </>
     );
 

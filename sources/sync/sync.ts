@@ -1944,9 +1944,11 @@ class Sync {
 
                     // Re-fetch messages when control returns to mobile (local -> remote mode switch)
                     // This catches up on any messages that were exchanged while desktop had control
-                    const wasControlledByUser = session.agentState?.controlledByUser;
-                    const isNowControlledByUser = agentState?.controlledByUser;
-                    if (!wasControlledByUser && isNowControlledByUser) {
+                    // Use strict boolean comparisons to only trigger on actual false->true transitions,
+                    // not on undefined->true which can happen on initial session load
+                    const wasControlledByUser = Boolean(session.agentState?.controlledByUser);
+                    const isNowControlledByUser = Boolean(agentState?.controlledByUser);
+                    if (wasControlledByUser === false && isNowControlledByUser === true) {
                         log.log(`🔄 Control returned to mobile for session ${updateData.body.id}, re-fetching messages`);
                         this.onSessionVisible(updateData.body.id);
                     }
