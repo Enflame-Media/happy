@@ -51,6 +51,7 @@ export const zhHans: TranslationStructure = {
         discard: '放弃',
         version: '版本',
         copied: '已复制',
+        copy: '复制',
         scanning: '扫描中...',
         urlPlaceholder: 'https://example.com',
         home: '主页',
@@ -61,7 +62,6 @@ export const zhHans: TranslationStructure = {
         retry: '重试',
         on: '在',
         undo: '撤销',
-        copy: '复制',
     },
 
     markdown: {

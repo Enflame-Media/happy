@@ -49,6 +49,7 @@ export const es: TranslationStructure = {
         discard: 'Descartar',
         version: 'Versión',
         copied: 'Copiado',
+        copy: 'Copiar',
         scanning: 'Escaneando...',
         urlPlaceholder: 'https://ejemplo.com',
         home: 'Inicio',
@@ -59,7 +60,6 @@ export const es: TranslationStructure = {
         retry: 'Reintentar',
         on: 'en',
         undo: 'Deshacer',
-        copy: 'Copiar',
     },
 
     markdown: {

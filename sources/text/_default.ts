@@ -49,6 +49,7 @@ export const en = {
         discard: 'Discard',
         version: 'Version',
         copied: 'Copied',
+        copy: 'Copy',
         scanning: 'Scanning...',
         urlPlaceholder: 'https://example.com',
         home: 'Home',
@@ -59,7 +60,6 @@ export const en = {
         retry: 'Retry',
         on: 'on',
         undo: 'Undo',
-        copy: 'Copy',
     },
 
     markdown: {

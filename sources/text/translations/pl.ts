@@ -60,6 +60,7 @@ export const pl: TranslationStructure = {
         discard: 'Odrzuć',
         version: 'Wersja',
         copied: 'Skopiowano',
+        copy: 'Kopiuj',
         scanning: 'Skanowanie...',
         urlPlaceholder: 'https://example.com',
         home: 'Główna',
@@ -70,7 +71,6 @@ export const pl: TranslationStructure = {
         retry: 'Ponów',
         on: 'na',
         undo: 'Cofnij',
-        copy: 'Kopiuj',
     },
 
     markdown: {
