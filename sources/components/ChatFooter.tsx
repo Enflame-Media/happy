@@ -1,21 +1,39 @@
 import * as React from 'react';
-import { View, Text, ViewStyle, TextStyle } from 'react-native';
+import { View, Text } from 'react-native';
+import { StyleSheet } from 'react-native-unistyles';
 import { Typography } from '@/constants/Typography';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useUnistyles } from 'react-native-unistyles';
 
 interface ChatFooterProps {
     controlledByUser?: boolean;
 }
 
 export const ChatFooter = React.memo((props: ChatFooterProps) => {
-    const { theme } = useUnistyles();
-    const containerStyle: ViewStyle = {
+    return (
+        <View style={styles.container}>
+            {props.controlledByUser && (
+                <View style={styles.warningContainer}>
+                    <Ionicons
+                        name="information-circle"
+                        size={16}
+                        color={styles.warningText.color}
+                    />
+                    <Text style={styles.warningText}>
+                        Permissions shown in terminal only. Reset or send a message to control from app.
+                    </Text>
+                </View>
+            )}
+        </View>
+    );
+});
+
+const styles = StyleSheet.create((theme) => ({
+    container: {
         alignItems: 'center',
         paddingTop: 4,
         paddingBottom: 2,
-    };
-    const warningContainerStyle: ViewStyle = {
+    },
+    warningContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 12,
@@ -24,27 +42,11 @@ export const ChatFooter = React.memo((props: ChatFooterProps) => {
         borderRadius: 8,
         marginHorizontal: 32,
         marginTop: 4,
-    };
-    const warningTextStyle: TextStyle = {
+    },
+    warningText: {
         fontSize: 12,
         color: theme.colors.box.warning.text,
         marginLeft: 6,
         ...Typography.default()
-    };
-    return (
-        <View style={containerStyle}>
-            {props.controlledByUser && (
-                <View style={warningContainerStyle}>
-                    <Ionicons 
-                        name="information-circle" 
-                        size={16} 
-                        color={theme.colors.box.warning.text}
-                    />
-                    <Text style={warningTextStyle}>
-                        Permissions shown in terminal only. Reset or send a message to control from app.
-                    </Text>
-                </View>
-            )}
-        </View>
-    );
-});
+    },
+}));
