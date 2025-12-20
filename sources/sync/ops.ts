@@ -133,6 +133,14 @@ export type SpawnSessionResult =
     | { type: 'requestToApproveDirectoryCreation'; directory: string }
     | { type: 'error'; errorMessage: string };
 
+/**
+ * Check if a session ID is a temporary PID-based ID from the daemon
+ * (returned when session webhook times out but process was spawned)
+ */
+export function isTemporaryPidSessionId(sessionId: string): boolean {
+    return sessionId.startsWith('PID-');
+}
+
 // Options for spawning a session
 export interface SpawnSessionOptions {
     machineId: string;
@@ -150,6 +158,11 @@ export interface SpawnSessionOptions {
 }
 
 // Exported session operation functions
+
+// Session spawning can take 60-90+ seconds on cold starts (Claude auth, network, etc.)
+// This timeout must be longer than the daemon's HAPPY_SESSION_SPAWN_TIMEOUT (default 30s)
+// to ensure we receive the daemon's graceful fallback response instead of timing out first
+const SESSION_SPAWN_TIMEOUT_MS = 90000;
 
 /**
  * Spawn a new remote session on a specific machine.
@@ -171,7 +184,8 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
         }>(
             machineId,
             'spawn-happy-session',
-            { type: 'spawn-in-directory', directory, approvedNewDirectoryCreation, token, agent, sessionId }
+            { type: 'spawn-in-directory', directory, approvedNewDirectoryCreation, token, agent, sessionId },
+            { timeout: SESSION_SPAWN_TIMEOUT_MS }
         );
         return result;
     } catch (error) {
@@ -494,15 +508,32 @@ export async function sessionKill(sessionId: string): Promise<SessionKillRespons
  * Permanently delete a session from the server
  * This will remove the session and all its associated data (messages, usage reports, access keys)
  * The session should be inactive/archived before deletion
+ *
+ * Note: After successful deletion, the session is immediately removed from local storage
+ * (optimistic update) rather than waiting for the socket delete-session event. This ensures
+ * the UI updates immediately even if the socket connection has issues.
  */
 export async function sessionDelete(sessionId: string): Promise<{ success: boolean; message?: string }> {
     try {
         const response = await apiSocket.request(`/v1/sessions/${sessionId}`, {
             method: 'DELETE'
         });
-        
+
         if (response.ok) {
             const _result = await response.json();
+
+            // Optimistic update: immediately remove from local storage
+            // This ensures the UI updates even if the socket delete-session event is delayed/dropped
+            const { storage } = await import('./storage');
+            storage.getState().deleteSession(sessionId);
+
+            // Also clean up encryption keys and project manager
+            sync.encryption.removeSessionEncryption(sessionId);
+            const { projectManager } = await import('./projectManager');
+            projectManager.removeSession(sessionId);
+            const { gitStatusSync } = await import('./gitStatusSync');
+            gitStatusSync.clearForSession(sessionId);
+
             return { success: true };
         } else {
             const error = await response.text();

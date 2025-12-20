@@ -47,6 +47,7 @@ export const ru: TranslationStructure = {
         save: 'Сохранить',
         error: 'Ошибка',
         success: 'Успешно',
+        note: 'Примечание',
         ok: 'ОК',
         continue: 'Продолжить',
         back: 'Назад',
@@ -265,6 +266,7 @@ export const ru: TranslationStructure = {
         startNewSessionInFolder: 'Новая сессия здесь',
         noMachineSelected: 'Пожалуйста, выберите машину для запуска сессии',
         noPathSelected: 'Пожалуйста, выберите директорию для запуска сессии',
+        sessionStartingSlow: 'Сессия запускается медленно. Она появится в списке сессий, когда будет готова. Возможно, вам придётся отправить запрос повторно.',
         sessionType: {
             title: 'Тип сессии',
             simple: 'Простая',
@@ -281,7 +283,7 @@ export const ru: TranslationStructure = {
         recentPaths: {
             header: 'Недавние',
             browseAll: 'Показать все...',
-        }
+        },
     },
 
     sessionHistory: {

@@ -13,7 +13,7 @@ import { MultiTextInputHandle } from '@/components/MultiTextInput';
 import { useHeaderHeight } from '@/utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
-import { machineSpawnNewSession } from '@/sync/ops';
+import { machineSpawnNewSession, isTemporaryPidSessionId } from '@/sync/ops';
 import { Modal } from '@/modal';
 import { sync } from '@/sync/sync';
 import { SessionTypeSelector } from '@/components/SessionTypeSelector';
@@ -445,6 +445,19 @@ function NewSessionScreen() {
 
             // Use sessionId to check for success for backwards compatibility
             if ('sessionId' in result && result.sessionId) {
+                // Check if this is a temporary PID-based session ID
+                // (returned when daemon's webhook timeout exceeded but process was spawned)
+                if (isTemporaryPidSessionId(result.sessionId)) {
+                    // Session is starting slowly - inform user and go to home
+                    // The session will appear once it's fully created
+                    Modal.alert(
+                        t('common.note'),
+                        t('newSession.sessionStartingSlow')
+                    );
+                    router.replace('/');
+                    return;
+                }
+
                 // Store worktree metadata if applicable
                 if (sessionType === 'worktree') {
                     // The metadata will be stored by the session itself once created

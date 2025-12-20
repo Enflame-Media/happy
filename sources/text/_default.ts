@@ -36,6 +36,7 @@ export const en = {
         save: 'Save',
         error: 'Error',
         success: 'Success',
+        note: 'Note',
         ok: 'OK',
         continue: 'Continue',
         back: 'Back',
@@ -277,6 +278,7 @@ export const en = {
         notConnectedToServer: 'Not connected to server. Check your internet connection.',
         noMachineSelected: 'Please select a machine to start the session',
         noPathSelected: 'Please select a directory to start the session in',
+        sessionStartingSlow: 'Session is starting slowly. It will appear in your sessions list once ready. You may need to send your prompt again.',
         sessionType: {
             title: 'Session Type',
             simple: 'Simple',

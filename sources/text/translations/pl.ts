@@ -47,6 +47,7 @@ export const pl: TranslationStructure = {
         save: 'Zapisz',
         error: 'Błąd',
         success: 'Sukces',
+        note: 'Uwaga',
         ok: 'OK',
         continue: 'Kontynuuj',
         back: 'Wstecz',
@@ -293,6 +294,7 @@ export const pl: TranslationStructure = {
         startNewSessionInFolder: 'Nowa sesja tutaj',
         noMachineSelected: 'Proszę wybrać maszynę do rozpoczęcia sesji',
         noPathSelected: 'Proszę wybrać katalog do rozpoczęcia sesji',
+        sessionStartingSlow: 'Sesja uruchamia się powoli. Pojawi się na liście sesji, gdy będzie gotowa. Może być konieczne ponowne wysłanie polecenia.',
         sessionType: {
             title: 'Typ sesji',
             simple: 'Prosta',
@@ -309,7 +311,7 @@ export const pl: TranslationStructure = {
         recentPaths: {
             header: 'Ostatnie',
             browseAll: 'Przeglądaj wszystkie...',
-        }
+        },
     },
 
     sessionHistory: {

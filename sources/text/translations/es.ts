@@ -36,6 +36,7 @@ export const es: TranslationStructure = {
         save: 'Guardar',
         error: 'Error',
         success: 'Éxito',
+        note: 'Nota',
         ok: 'OK',
         continue: 'Continuar',
         back: 'Atrás',
@@ -282,6 +283,7 @@ export const es: TranslationStructure = {
         startNewSessionInFolder: 'Nueva sesión aquí',
         noMachineSelected: 'Por favor, selecciona una máquina para iniciar la sesión',
         noPathSelected: 'Por favor, selecciona un directorio para iniciar la sesión',
+        sessionStartingSlow: 'La sesión está iniciando lentamente. Aparecerá en tu lista de sesiones cuando esté lista. Es posible que debas enviar tu mensaje nuevamente.',
         sessionType: {
             title: 'Tipo de sesión',
             simple: 'Simple',
@@ -298,7 +300,7 @@ export const es: TranslationStructure = {
         recentPaths: {
             header: 'Recientes',
             browseAll: 'Ver todo...',
-        }
+        },
     },
 
     sessionHistory: {

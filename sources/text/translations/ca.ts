@@ -36,6 +36,7 @@ export const ca: TranslationStructure = {
         save: 'Desa',
         error: 'Error',
         success: 'Èxit',
+        note: 'Nota',
         ok: 'D\'acord',
         continue: 'Continua',
         back: 'Enrere',
@@ -282,6 +283,7 @@ export const ca: TranslationStructure = {
         startNewSessionInFolder: 'Nova sessió aquí',
         noMachineSelected: 'Si us plau, selecciona una màquina per iniciar la sessió',
         noPathSelected: 'Si us plau, selecciona un directori per iniciar la sessió',
+        sessionStartingSlow: 'La sessió s\'està iniciant lentament. Apareixerà a la llista de sessions quan estigui llesta. Pot ser que hagis de tornar a enviar el missatge.',
         sessionType: {
             title: 'Tipus de sessió',
             simple: 'Simple',
@@ -298,7 +300,7 @@ export const ca: TranslationStructure = {
         recentPaths: {
             header: 'Recents',
             browseAll: 'Veure tot...',
-        }
+        },
     },
 
     sessionHistory: {

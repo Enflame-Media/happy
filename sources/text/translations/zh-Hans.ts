@@ -38,6 +38,7 @@ export const zhHans: TranslationStructure = {
         save: '保存',
         error: '错误',
         success: '成功',
+        note: '提示',
         ok: '确定',
         continue: '继续',
         back: '返回',
@@ -284,6 +285,7 @@ export const zhHans: TranslationStructure = {
         notConnectedToServer: '未连接到服务器。请检查您的网络连接。',
         noMachineSelected: '请选择一台设备以启动会话',
         noPathSelected: '请选择一个目录以启动会话',
+        sessionStartingSlow: '会话正在缓慢启动。准备就绪后将出现在您的会话列表中。您可能需要重新发送提示词。',
         sessionType: {
             title: '会话类型',
             simple: '简单',
@@ -300,7 +302,7 @@ export const zhHans: TranslationStructure = {
         recentPaths: {
             header: '最近',
             browseAll: '浏览全部...',
-        }
+        },
     },
 
     sessionHistory: {
