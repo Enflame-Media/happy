@@ -141,6 +141,58 @@ interface StorageState {
     clearFeed: () => void;
 }
 
+// Cache for date boundary calculations - invalidates when day changes
+let dateBoundaryCache: {
+    todayTime: number;
+    yesterdayTime: number;
+    cacheDate: string;
+} | null = null;
+
+// Cache for header title strings keyed by dateString
+const headerTitleCache = new Map<string, string>();
+
+// Get or compute today/yesterday boundaries (cached, auto-invalidates on new day)
+function getDateBoundaries(): { todayTime: number; yesterdayTime: number } {
+    const now = new Date();
+    const currentDate = now.toDateString();
+
+    // Invalidate cache if day changed
+    if (!dateBoundaryCache || dateBoundaryCache.cacheDate !== currentDate) {
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayTime = today.getTime();
+        const yesterdayTime = todayTime - 24 * 60 * 60 * 1000;
+        dateBoundaryCache = { todayTime, yesterdayTime, cacheDate: currentDate };
+        // Clear header cache when day changes (translations may reference relative dates)
+        headerTitleCache.clear();
+    }
+
+    return { todayTime: dateBoundaryCache.todayTime, yesterdayTime: dateBoundaryCache.yesterdayTime };
+}
+
+// Get or compute header title for a date (cached)
+function getHeaderTitle(dateString: string, todayTime: number, yesterdayTime: number): string {
+    let title = headerTitleCache.get(dateString);
+    if (title !== undefined) {
+        return title;
+    }
+
+    const groupDate = new Date(dateString);
+    const sessionDateOnly = new Date(groupDate.getFullYear(), groupDate.getMonth(), groupDate.getDate());
+    const sessionTime = sessionDateOnly.getTime();
+
+    if (sessionTime === todayTime) {
+        title = t('sessionHistory.today');
+    } else if (sessionTime === yesterdayTime) {
+        title = t('sessionHistory.yesterday');
+    } else {
+        const diffDays = Math.floor((todayTime - sessionTime) / (1000 * 60 * 60 * 24));
+        title = t('sessionHistory.daysAgo', { count: diffDays });
+    }
+
+    headerTitleCache.set(dateString, title);
+    return title;
+}
+
 // Helper function to build unified list view data from sessions and machines
 function buildSessionListViewData(
     sessions: Record<string, Session>
@@ -169,10 +221,8 @@ function buildSessionListViewData(
         listData.push({ type: 'active-sessions', sessions: activeSessions });
     }
 
-    // Group inactive sessions by date
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    // Get cached date boundaries (auto-invalidates on new day)
+    const { todayTime, yesterdayTime } = getDateBoundaries();
 
     let currentDateGroup: Session[] = [];
     let currentDateString: string | null = null;
@@ -182,22 +232,9 @@ function buildSessionListViewData(
         const dateString = sessionDate.toDateString();
 
         if (currentDateString !== dateString) {
-            // Process previous group
+            // Process previous group using cached header title
             if (currentDateGroup.length > 0 && currentDateString) {
-                const groupDate = new Date(currentDateString);
-                const sessionDateOnly = new Date(groupDate.getFullYear(), groupDate.getMonth(), groupDate.getDate());
-
-                let headerTitle: string;
-                if (sessionDateOnly.getTime() === today.getTime()) {
-                    headerTitle = t('sessionHistory.today');
-                } else if (sessionDateOnly.getTime() === yesterday.getTime()) {
-                    headerTitle = t('sessionHistory.yesterday');
-                } else {
-                    const diffTime = today.getTime() - sessionDateOnly.getTime();
-                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                    headerTitle = t('sessionHistory.daysAgo', { count: diffDays });
-                }
-
+                const headerTitle = getHeaderTitle(currentDateString, todayTime, yesterdayTime);
                 listData.push({ type: 'header', title: headerTitle });
                 currentDateGroup.forEach(sess => {
                     listData.push({ type: 'session', session: sess });
@@ -212,22 +249,9 @@ function buildSessionListViewData(
         }
     }
 
-    // Process final group
+    // Process final group using cached header title
     if (currentDateGroup.length > 0 && currentDateString) {
-        const groupDate = new Date(currentDateString);
-        const sessionDateOnly = new Date(groupDate.getFullYear(), groupDate.getMonth(), groupDate.getDate());
-
-        let headerTitle: string;
-        if (sessionDateOnly.getTime() === today.getTime()) {
-            headerTitle = t('sessionHistory.today');
-        } else if (sessionDateOnly.getTime() === yesterday.getTime()) {
-            headerTitle = t('sessionHistory.yesterday');
-        } else {
-            const diffTime = today.getTime() - sessionDateOnly.getTime();
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-            headerTitle = t('sessionHistory.daysAgo', { count: diffDays });
-        }
-
+        const headerTitle = getHeaderTitle(currentDateString, todayTime, yesterdayTime);
         listData.push({ type: 'header', title: headerTitle });
         currentDateGroup.forEach(sess => {
             listData.push({ type: 'session', session: sess });
