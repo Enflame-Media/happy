@@ -107,7 +107,11 @@ class Sync {
         MAX_CACHED_MESSAGE_SYNCS,
         (_, sync) => sync.stop()
     );
-    private sessionReceivedMessages = new Map<string, Set<string>>();
+    /**
+     * Tracks the highest message sequence number received per session.
+     * Used for cursor-based message fetching to only request new messages.
+     */
+    private sessionLastSeq = new Map<string, number>();
     /**
      * LRU cache for artifact data encryption keys.
      * Keys are evicted when cache exceeds MAX_CACHED_ARTIFACT_KEYS to prevent memory leaks.
@@ -1563,51 +1567,70 @@ class Sync {
             throw new Error(`Session encryption not ready for ${sessionId}`);
         }
 
-        // Request
-        const response = await apiSocket.request(`/v1/sessions/${sessionId}/messages`);
-        const data = await response.json();
+        // Get the last received sequence number for cursor-based fetching
+        const lastSeq = this.sessionLastSeq.get(sessionId);
 
-        // Collect existing messages
-        let eixstingMessages = this.sessionReceivedMessages.get(sessionId);
-        if (!eixstingMessages) {
-            eixstingMessages = new Set<string>();
-            this.sessionReceivedMessages.set(sessionId, eixstingMessages);
+        // Request with cursor if we have previous messages
+        const url = lastSeq !== undefined
+            ? `/v1/sessions/${sessionId}/messages?sinceSeq=${lastSeq}`
+            : `/v1/sessions/${sessionId}/messages`;
+        log.log(`💬 fetchMessages: Requesting ${url} (lastSeq=${lastSeq ?? 'none'})`);
+
+        const response = await apiSocket.request(url);
+        const data = await response.json();
+        const messages = data.messages as ApiMessage[];
+
+        // No new messages - nothing to process
+        if (messages.length === 0) {
+            log.log(`💬 fetchMessages: No new messages for session ${sessionId}`);
+            return;
         }
 
         // Decrypt and normalize messages
-        let start = Date.now();
-        let normalizedMessages: NormalizedMessage[] = [];
+        const start = Date.now();
 
-        // Filter out existing messages and prepare for batch decryption
-        const messagesToDecrypt: ApiMessage[] = [];
-        for (const msg of [...data.messages as ApiMessage[]].reverse()) {
-            if (!eixstingMessages.has(msg.id)) {
-                messagesToDecrypt.push(msg);
-            }
+        // Safety filter: skip any messages we might have already processed
+        // (handles edge cases like server reordering or duplicate delivery)
+        const messagesToDecrypt = lastSeq !== undefined
+            ? messages.filter(msg => msg.seq > lastSeq)
+            : messages;
+
+        if (messagesToDecrypt.length === 0) {
+            log.log(`💬 fetchMessages: All messages already processed for session ${sessionId}`);
+            return;
         }
 
         // Batch decrypt all messages at once
         const decryptedMessages = await encryption.decryptMessages(messagesToDecrypt);
 
         // Process decrypted messages
+        const normalizedMessages: NormalizedMessage[] = [];
+        let maxSeq = lastSeq ?? 0;
+
         for (let i = 0; i < decryptedMessages.length; i++) {
             const decrypted = decryptedMessages[i];
             if (decrypted) {
-                eixstingMessages.add(decrypted.id);
+                // Track the highest seq for next cursor (seq can be null for legacy messages)
+                if (decrypted.seq !== null && decrypted.seq > maxSeq) {
+                    maxSeq = decrypted.seq;
+                }
                 // Normalize the decrypted message
-                let normalized = normalizeRawMessage(decrypted.id, decrypted.localId, decrypted.createdAt, decrypted.content);
+                const normalized = normalizeRawMessage(decrypted.id, decrypted.localId, decrypted.createdAt, decrypted.content);
                 if (normalized) {
                     normalizedMessages.push(normalized);
                 }
             }
         }
+
+        // Update the cursor for next fetch
+        this.sessionLastSeq.set(sessionId, maxSeq);
+
         console.log('Batch decrypted and normalized messages in', Date.now() - start, 'ms');
         console.log('normalizedMessages', JSON.stringify(normalizedMessages));
-        // console.log('messages', JSON.stringify(normalizedMessages));
 
         // Apply to storage
         this.applyMessages(sessionId, normalizedMessages);
-        log.log(`💬 fetchMessages completed for session ${sessionId} - processed ${normalizedMessages.length} messages`);
+        log.log(`💬 fetchMessages completed for session ${sessionId} - processed ${normalizedMessages.length} messages (maxSeq=${maxSeq})`);
     }
 
     private registerPushToken = async () => {
