@@ -5,6 +5,7 @@ import { FeedResponseSchema, FeedItem } from './feedTypes';
 import { log } from '@/log';
 import { AppError, ErrorCodes } from '@/utils/errors';
 import { checkAuthError } from './apiHelper';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 
 /**
  * Fetch user's feed with pagination
@@ -28,7 +29,7 @@ export async function fetchFeed(
         const url = `${API_ENDPOINT}/v1/feed${params.toString() ? `?${params}` : ''}`;
         log.log(`📰 Fetching feed: ${url}`);
         
-        const response = await fetch(url, {
+        const response = await fetchWithTimeout(url, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`

@@ -28,6 +28,8 @@ export const ErrorCodes = {
     // API errors
     API_ERROR: 'API_ERROR',
     FETCH_FAILED: 'FETCH_FAILED',
+    FETCH_ABORTED: 'FETCH_ABORTED',
+    TIMEOUT: 'TIMEOUT',
 
     // Encryption errors
     ENCRYPTION_ERROR: 'ENCRYPTION_ERROR',

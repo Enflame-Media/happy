@@ -3,6 +3,7 @@ import { backoff } from '@/utils/time';
 import { getServerUrl } from './serverConfig';
 import { AppError, ErrorCodes } from '@/utils/errors';
 import { checkAuthError } from './apiHelper';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 
 //
 // Types
@@ -75,7 +76,7 @@ export async function kvGet(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(`${API_ENDPOINT}/v1/kv/${encodeURIComponent(key)}`, {
+        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/kv/${encodeURIComponent(key)}`, {
             headers: {
                 'Authorization': `Bearer ${credentials.token}`
             }
@@ -117,7 +118,7 @@ export async function kvList(
         : `${API_ENDPOINT}/v1/kv`;
 
     return await backoff(async () => {
-        const response = await fetch(url, {
+        const response = await fetchWithTimeout(url, {
             headers: {
                 'Authorization': `Bearer ${credentials.token}`
             }
@@ -151,7 +152,7 @@ export async function kvBulkGet(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(`${API_ENDPOINT}/v1/kv/bulk`, {
+        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/kv/bulk`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`,
@@ -190,7 +191,7 @@ export async function kvMutate(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(`${API_ENDPOINT}/v1/kv`, {
+        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/kv`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`,

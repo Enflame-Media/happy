@@ -2,6 +2,7 @@ import { AuthCredentials } from '@/auth/tokenStorage';
 import { backoff } from '@/utils/time';
 import { getServerUrl } from './serverConfig';
 import { AppError, ErrorCodes } from '@/utils/errors';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 
 /**
  * Connect a service to the user's account
@@ -14,7 +15,7 @@ export async function connectService(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(`${API_ENDPOINT}/v1/connect/${service}/register`, {
+        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/connect/${service}/register`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`,
@@ -41,7 +42,7 @@ export async function disconnectService(credentials: AuthCredentials, service: s
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(`${API_ENDPOINT}/v1/connect/${service}`, {
+        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/connect/${service}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`

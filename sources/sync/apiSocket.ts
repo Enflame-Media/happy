@@ -1,6 +1,7 @@
 import { TokenStorage } from '@/auth/tokenStorage';
 import { Encryption } from './encryption/encryption';
 import { AppError, ErrorCodes } from '@/utils/errors';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import * as Crypto from 'expo-crypto';
 
 //
@@ -143,12 +144,13 @@ class ApiSocket {
 
         // HAP-375: Try to fetch a ticket for secure authentication
         try {
-            const ticketResponse = await fetch(`${this.config.endpoint}/v1/websocket/ticket`, {
+            const ticketResponse = await fetchWithTimeout(`${this.config.endpoint}/v1/websocket/ticket`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${this.config.token}`,
                     'Content-Type': 'application/json',
                 },
+                timeoutMs: 10000, // 10 second timeout for ticket request
             });
 
             if (ticketResponse.ok) {
@@ -159,7 +161,7 @@ class ApiSocket {
             // If ticket request fails, fall through to connect without ticket
             // The server's HAP-360 pending-auth flow will handle it
         } catch {
-            // Network error fetching ticket - continue without it
+            // Network error or timeout fetching ticket - continue without it
             // Will use HAP-360 message-based auth as fallback
         }
 
@@ -377,13 +379,13 @@ class ApiSocket {
      * @param machineId - The machine ID
      * @param method - The RPC method name
      * @param params - The parameters to pass
-     * @param options - Optional abort signal for cancellation
+     * @param options - Optional abort signal for cancellation and custom timeout
      */
     async machineRPC<R, A>(
         machineId: string,
         method: string,
         params: A,
-        options?: { signal?: AbortSignal }
+        options?: { signal?: AbortSignal; timeout?: number }
     ): Promise<R> {
         const machineEncryption = this.encryption!.getMachineEncryption(machineId);
         if (!machineEncryption) {
@@ -417,10 +419,14 @@ class ApiSocket {
             // Make the RPC call
             const encryptPromise = machineEncryption.encryptRaw(params);
             encryptPromise.then(encryptedParams => {
-                return this.emitWithAck<{ ok?: boolean; result?: string; cancelled?: boolean; requestId?: string }>('rpc-call', {
-                    method: `${machineId}:${method}`,
-                    params: encryptedParams
-                });
+                return this.emitWithAck<{ ok?: boolean; result?: string; cancelled?: boolean; requestId?: string }>(
+                    'rpc-call',
+                    {
+                        method: `${machineId}:${method}`,
+                        params: encryptedParams
+                    },
+                    options?.timeout
+                );
             }).then(rpcResult => {
                 if (!isSettled) {
                     isSettled = true;
@@ -474,19 +480,23 @@ class ApiSocket {
     /**
      * Emit an event and wait for acknowledgement.
      * This implements the request-response pattern using ackId.
+     * @param event - The event name
+     * @param data - The data to send
+     * @param timeout - Optional custom timeout in milliseconds (defaults to ackTimeout config)
      */
-    async emitWithAck<T = unknown>(event: string, data: unknown): Promise<T> {
+    async emitWithAck<T = unknown>(event: string, data: unknown, timeout?: number): Promise<T> {
         if (!this.ws || this.currentStatus !== 'connected') {
             throw new AppError(ErrorCodes.SOCKET_NOT_CONNECTED, 'Socket not connected');
         }
 
         const ackId = Crypto.randomUUID();
+        const effectiveTimeout = timeout ?? this.wsConfig.ackTimeout;
 
         return new Promise<T>((resolve, reject) => {
             const timer = setTimeout(() => {
                 this.pendingAcks.delete(ackId);
                 reject(new AppError(ErrorCodes.RPC_FAILED, `Request timed out: ${event}`));
-            }, this.wsConfig.ackTimeout);
+            }, effectiveTimeout);
 
             this.pendingAcks.set(ackId, { resolve: resolve as (value: unknown) => void, reject, timer });
 

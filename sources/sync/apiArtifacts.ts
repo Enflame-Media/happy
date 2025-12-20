@@ -4,6 +4,7 @@ import { getServerUrl } from './serverConfig';
 import { Artifact, ArtifactCreateRequest, ArtifactUpdateRequest, ArtifactUpdateResponse } from './artifactTypes';
 import { AppError, ErrorCodes } from '@/utils/errors';
 import { checkAuthError } from './apiHelper';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 
 /**
  * Fetch all artifacts for the account
@@ -12,7 +13,7 @@ export async function fetchArtifacts(credentials: AuthCredentials): Promise<Arti
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(`${API_ENDPOINT}/v1/artifacts`, {
+        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/artifacts`, {
             headers: {
                 'Authorization': `Bearer ${credentials.token}`,
                 'Content-Type': 'application/json'
@@ -36,7 +37,7 @@ export async function fetchArtifact(credentials: AuthCredentials, artifactId: st
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(`${API_ENDPOINT}/v1/artifacts/${artifactId}`, {
+        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/artifacts/${artifactId}`, {
             headers: {
                 'Authorization': `Bearer ${credentials.token}`,
                 'Content-Type': 'application/json'
@@ -66,7 +67,7 @@ export async function createArtifact(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(`${API_ENDPOINT}/v1/artifacts`, {
+        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/artifacts`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`,
@@ -99,7 +100,7 @@ export async function updateArtifact(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(`${API_ENDPOINT}/v1/artifacts/${artifactId}`, {
+        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/artifacts/${artifactId}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`,
@@ -131,7 +132,7 @@ export async function deleteArtifact(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(`${API_ENDPOINT}/v1/artifacts/${artifactId}`, {
+        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/artifacts/${artifactId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`

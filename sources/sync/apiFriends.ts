@@ -9,6 +9,7 @@ import {
 } from './friendTypes';
 import { AppError, ErrorCodes } from '@/utils/errors';
 import { checkAuthError } from './apiHelper';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 
 /**
  * Search for users by username (returns multiple results)
@@ -20,7 +21,7 @@ export async function searchUsersByUsername(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(
+        const response = await fetchWithTimeout(
             `${API_ENDPOINT}/v1/users/search?${new URLSearchParams({ query: username })}`,
             {
                 method: 'GET',
@@ -59,7 +60,7 @@ export async function getUserProfile(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(
+        const response = await fetchWithTimeout(
             `${API_ENDPOINT}/v1/users/${userId}`,
             {
                 method: 'GET',
@@ -115,7 +116,7 @@ export async function sendFriendRequest(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(`${API_ENDPOINT}/v1/friends/add`, {
+        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/friends/add`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`,
@@ -158,7 +159,7 @@ export async function getFriendsList(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(`${API_ENDPOINT}/v1/friends`, {
+        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/friends`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`
@@ -191,7 +192,7 @@ export async function removeFriend(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetch(`${API_ENDPOINT}/v1/friends/remove`, {
+        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/friends/remove`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`,
