@@ -275,8 +275,12 @@ function SessionInfoContent({ session }: { session: Session }) {
 
     const handleRestoreSession = useCallback(() => {
         hapticsLight();
+        if (!machineOnline) {
+            Toast.show({ message: t('sessionInfo.restoreRequiresMachine') });
+            return;
+        }
         performRestore();
-    }, [performRestore]);
+    }, [performRestore, machineOnline]);
 
     const formatDate = useCallback((timestamp: number) => {
         return new Date(timestamp).toLocaleString();
@@ -430,12 +434,14 @@ function SessionInfoContent({ session }: { session: Session }) {
                         />
                     )}
                     {/* HAP-392: Restore session for archived Claude sessions */}
+                    {/* HAP-493: Always wire onPress to provide user feedback */}
                     {canRestore && (
                         <Item
                             title={t('sessionInfo.restoreSession')}
                             subtitle={machineOnline ? t('sessionInfo.restoreSessionSubtitle') : t('sessionInfo.restoreRequiresMachine')}
                             icon={<Ionicons name="refresh-circle-outline" size={29} color={machineOnline ? "#34C759" : "#8E8E93"} />}
-                            onPress={machineOnline ? handleRestoreSession : undefined}
+                            onPress={handleRestoreSession}
+                            disabled={!machineOnline}
                             showChevron={machineOnline}
                         />
                     )}

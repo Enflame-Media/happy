@@ -694,10 +694,17 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                         <Text style={styles.archivedBannerText}>
                             {t('session.archivedBannerText')}
                         </Text>
+                        {/* HAP-493: Always wire onPress to provide user feedback */}
                         {canRestore && (
                             <Pressable
-                                onPress={machineOnline ? performRestore : undefined}
-                                disabled={!machineOnline || isRestoring}
+                                onPress={() => {
+                                    if (!machineOnline) {
+                                        Toast.show({ message: t('sessionInfo.restoreRequiresMachine') });
+                                        return;
+                                    }
+                                    performRestore();
+                                }}
+                                disabled={isRestoring}
                                 style={[
                                     styles.restoreButton,
                                     (!machineOnline || isRestoring) && styles.restoreButtonDisabled
