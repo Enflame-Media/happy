@@ -37,6 +37,7 @@
     "@elevenlabs/react-native": "^0.5.7",
     "@expo/ui": "0.2.0-beta.9",
     "@expo/vector-icons": "^15.0.3",
+    "@happy/errors": "workspace:*",
     "@happy/protocol": "workspace:*",
     "@legendapp/list": "2.0.18",
     "@livekit/react-native": "^2.9.6",
