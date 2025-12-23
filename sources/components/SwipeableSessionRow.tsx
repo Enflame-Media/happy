@@ -25,7 +25,7 @@ import { hapticsLight } from '@/components/haptics';
 import { Modal } from '@/modal';
 import { Toast } from '@/toast';
 import { t } from '@/text';
-import { HappyError } from '@/utils/errors';
+import { AppError, ErrorCodes } from '@/utils/errors';
 import { useHappyAction } from '@/hooks/useHappyAction';
 import { useSessionStatus } from '@/utils/sessionUtils';
 import { StyleSheet } from 'react-native-unistyles';
@@ -63,7 +63,7 @@ export const SwipeableSessionRow = React.memo(function SwipeableSessionRow({
     const [_archiving, performArchive] = useHappyAction(async () => {
         const result = await sessionKill(session.id);
         if (!result.success) {
-            throw new HappyError(result.message || t('sessionInfo.failedToArchiveSession'), false);
+            throw new AppError(ErrorCodes.INTERNAL_ERROR, result.message || t('sessionInfo.failedToArchiveSession'), { canTryAgain: false });
         }
     });
 
@@ -71,7 +71,7 @@ export const SwipeableSessionRow = React.memo(function SwipeableSessionRow({
     const [_deleting, performDelete] = useHappyAction(async () => {
         const result = await sessionDelete(session.id);
         if (!result.success) {
-            throw new HappyError(result.message || t('sessionInfo.failedToDeleteSession'), false);
+            throw new AppError(ErrorCodes.INTERNAL_ERROR, result.message || t('sessionInfo.failedToDeleteSession'), { canTryAgain: false });
         }
     });
 

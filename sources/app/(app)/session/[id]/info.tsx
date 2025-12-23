@@ -22,7 +22,7 @@ import { isVersionSupported, MINIMUM_CLI_VERSION } from '@/utils/versionUtils';
 import { CodeView } from '@/components/CodeView';
 import { Session } from '@/sync/storageTypes';
 import { useHappyAction } from '@/hooks/useHappyAction';
-import { HappyError } from '@/utils/errors';
+import { AppError, ErrorCodes } from '@/utils/errors';
 import { SessionCostDisplay } from '@/components/usage/SessionCostDisplay';
 import { ContextBreakdown } from '@/components/usage/ContextBreakdown';
 import { ContextHistoryChart } from '@/components/usage/ContextHistoryChart';
@@ -117,7 +117,7 @@ function SessionInfoContent({ session }: { session: Session }) {
     const [_archivingSession, performArchive] = useHappyAction(async () => {
         const result = await sessionKill(session.id);
         if (!result.success) {
-            throw new HappyError(result.message || t('sessionInfo.failedToArchiveSession'), false);
+            throw new AppError(ErrorCodes.INTERNAL_ERROR, result.message || t('sessionInfo.failedToArchiveSession'), { canTryAgain: false });
         }
     });
 
@@ -164,7 +164,7 @@ function SessionInfoContent({ session }: { session: Session }) {
     const [_deletingSession, performDelete] = useHappyAction(async () => {
         const result = await sessionDelete(session.id);
         if (!result.success) {
-            throw new HappyError(result.message || t('sessionInfo.failedToDeleteSession'), false);
+            throw new AppError(ErrorCodes.INTERNAL_ERROR, result.message || t('sessionInfo.failedToDeleteSession'), { canTryAgain: false });
         }
         // Success - no alert needed, UI will update to show deleted state
     });
@@ -230,10 +230,10 @@ function SessionInfoContent({ session }: { session: Session }) {
 
     const [_restoringSession, performRestore] = useHappyAction(async () => {
         if (!session.metadata?.machineId || !session.metadata?.path) {
-            throw new HappyError(t('sessionInfo.failedToRestoreSession'), false);
+            throw new AppError(ErrorCodes.INTERNAL_ERROR, t('sessionInfo.failedToRestoreSession'), { canTryAgain: false });
         }
         if (!machineOnline) {
-            throw new HappyError(t('sessionInfo.restoreRequiresMachine'), false);
+            throw new AppError(ErrorCodes.INTERNAL_ERROR, t('sessionInfo.restoreRequiresMachine'), { canTryAgain: false });
         }
 
         const result = await machineSpawnNewSession({
@@ -244,10 +244,10 @@ function SessionInfoContent({ session }: { session: Session }) {
         });
 
         if (result.type === 'error') {
-            throw new HappyError(result.errorMessage || t('sessionInfo.failedToRestoreSession'), true);
+            throw new AppError(ErrorCodes.INTERNAL_ERROR, result.errorMessage || t('sessionInfo.failedToRestoreSession'), { canTryAgain: true });
         }
         if (result.type === 'requestToApproveDirectoryCreation') {
-            throw new HappyError(t('sessionInfo.failedToRestoreSession'), false);
+            throw new AppError(ErrorCodes.INTERNAL_ERROR, t('sessionInfo.failedToRestoreSession'), { canTryAgain: false });
         }
 
         let sessionId = result.sessionId;
@@ -262,7 +262,7 @@ function SessionInfoContent({ session }: { session: Session }) {
             );
 
             if (!realSessionId) {
-                throw new HappyError(t('newSession.sessionStartFailed'), false);
+                throw new AppError(ErrorCodes.INTERNAL_ERROR, t('newSession.sessionStartFailed'), { canTryAgain: false });
             }
 
             sessionId = realSessionId;

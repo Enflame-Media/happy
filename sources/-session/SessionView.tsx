@@ -18,7 +18,7 @@ import { storage, useIsDataReady, useLocalSetting, useRealtimeStatus, useSession
 import { useSession } from '@/sync/storage';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { useHappyAction } from '@/hooks/useHappyAction';
-import { HappyError } from '@/utils/errors';
+import { AppError, ErrorCodes } from '@/utils/errors';
 import { Toast } from '@/toast';
 import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
@@ -549,10 +549,10 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
 
     const [isRestoring, performRestore] = useHappyAction(async () => {
         if (!session.metadata?.machineId || !session.metadata?.path) {
-            throw new HappyError(t('sessionInfo.failedToRestoreSession'), false);
+            throw new AppError(ErrorCodes.INTERNAL_ERROR, t('sessionInfo.failedToRestoreSession'), { canTryAgain: false });
         }
         if (!machineOnline) {
-            throw new HappyError(t('sessionInfo.restoreRequiresMachine'), false);
+            throw new AppError(ErrorCodes.INTERNAL_ERROR, t('sessionInfo.restoreRequiresMachine'), { canTryAgain: false });
         }
 
         const result = await machineSpawnNewSession({
@@ -563,10 +563,10 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         });
 
         if (result.type === 'error') {
-            throw new HappyError(result.errorMessage || t('sessionInfo.failedToRestoreSession'), true);
+            throw new AppError(ErrorCodes.INTERNAL_ERROR, result.errorMessage || t('sessionInfo.failedToRestoreSession'), { canTryAgain: true });
         }
         if (result.type === 'requestToApproveDirectoryCreation') {
-            throw new HappyError(t('sessionInfo.failedToRestoreSession'), false);
+            throw new AppError(ErrorCodes.INTERNAL_ERROR, t('sessionInfo.failedToRestoreSession'), { canTryAgain: false });
         }
 
         let sessionId = result.sessionId;
@@ -581,7 +581,7 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
             );
 
             if (!realSessionId) {
-                throw new HappyError(t('newSession.sessionStartFailed'), false);
+                throw new AppError(ErrorCodes.INTERNAL_ERROR, t('newSession.sessionStartFailed'), { canTryAgain: false });
             }
 
             sessionId = realSessionId;

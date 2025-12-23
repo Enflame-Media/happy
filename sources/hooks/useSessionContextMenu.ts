@@ -25,7 +25,7 @@ import { t } from '@/text';
 import { showActionSheet, ActionSheetOption } from '@/utils/ActionSheet';
 import { hapticsLight } from '@/components/haptics';
 import { useSessionStatus } from '@/utils/sessionUtils';
-import { HappyError } from '@/utils/errors';
+import { AppError, ErrorCodes } from '@/utils/errors';
 import { useHappyAction } from './useHappyAction';
 
 const ARCHIVE_UNDO_DURATION = 5000; // 5 seconds to undo
@@ -52,7 +52,7 @@ export function useSessionContextMenu(session: Session, options?: UseSessionCont
     const [_archiving, performArchive] = useHappyAction(async () => {
         const result = await sessionKill(session.id);
         if (!result.success) {
-            throw new HappyError(result.message || t('sessionInfo.failedToArchiveSession'), false);
+            throw new AppError(ErrorCodes.INTERNAL_ERROR, result.message || t('sessionInfo.failedToArchiveSession'), { canTryAgain: false });
         }
     });
 
@@ -60,7 +60,7 @@ export function useSessionContextMenu(session: Session, options?: UseSessionCont
     const [_deleting, performDelete] = useHappyAction(async () => {
         const result = await sessionDelete(session.id);
         if (!result.success) {
-            throw new HappyError(result.message || t('sessionInfo.failedToDeleteSession'), false);
+            throw new AppError(ErrorCodes.INTERNAL_ERROR, result.message || t('sessionInfo.failedToDeleteSession'), { canTryAgain: false });
         }
     });
 
