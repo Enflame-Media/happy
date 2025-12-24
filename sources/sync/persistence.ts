@@ -166,3 +166,106 @@ export function retrieveTempText(id: string): string | null {
 export function clearPersistence() {
     mmkv.clearAll();
 }
+
+/**
+ * HAP-496: Persisted sync state for incremental sync across app restarts.
+ *
+ * Stores cursor/sequence tracking data so the app can resume incremental
+ * sync instead of doing a full fetch after restart.
+ */
+export interface PersistedSyncState {
+    /** Schema version for migration support */
+    version: 1;
+    /** When state was last persisted (Unix timestamp) */
+    timestamp: number;
+    /** Message sequence cursors per session (session ID → last seq) */
+    sessionLastSeq: Record<string, number>;
+    /** ETag for profile conditional requests */
+    profileETag: string | null;
+    /** Sequence numbers for entity types (e.g., 'artifacts', 'sessions') */
+    entitySeq: Record<string, number>;
+}
+
+/** Maximum age for persisted sync state (24 hours in milliseconds) */
+const SYNC_STATE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * HAP-496: Load persisted sync state from storage.
+ *
+ * Returns null if:
+ * - No state is persisted
+ * - State is corrupted/invalid
+ * - State is stale (> 24 hours old)
+ * - State version is incompatible
+ */
+export function loadSyncState(): PersistedSyncState | null {
+    const stored = mmkv.getString('sync-state');
+    if (!stored) {
+        return null;
+    }
+
+    try {
+        const parsed = JSON.parse(stored);
+
+        // Validate version
+        if (parsed.version !== 1) {
+            console.warn('[HAP-496] Sync state version mismatch, discarding');
+            mmkv.remove('sync-state');
+            return null;
+        }
+
+        // Check freshness (discard if > 24 hours old)
+        const age = Date.now() - (parsed.timestamp ?? 0);
+        if (age > SYNC_STATE_MAX_AGE_MS) {
+            console.log('[HAP-496] Sync state expired, discarding');
+            mmkv.remove('sync-state');
+            return null;
+        }
+
+        // Validate structure
+        if (
+            typeof parsed.sessionLastSeq !== 'object' ||
+            typeof parsed.entitySeq !== 'object' ||
+            (parsed.profileETag !== null && typeof parsed.profileETag !== 'string')
+        ) {
+            console.warn('[HAP-496] Sync state malformed, discarding');
+            mmkv.remove('sync-state');
+            return null;
+        }
+
+        return parsed as PersistedSyncState;
+    } catch (e) {
+        console.error('[HAP-496] Failed to parse sync state', e);
+        mmkv.remove('sync-state');
+        return null;
+    }
+}
+
+/**
+ * HAP-496: Save sync state to storage.
+ *
+ * Called on state updates (debounced) and on app background.
+ * Safe to call frequently due to MMKV's efficiency.
+ */
+export function saveSyncState(state: Omit<PersistedSyncState, 'version' | 'timestamp'>): void {
+    try {
+        const persisted: PersistedSyncState = {
+            version: 1,
+            timestamp: Date.now(),
+            ...state,
+        };
+        mmkv.set('sync-state', JSON.stringify(persisted));
+    } catch (e) {
+        // Storage failure should not break the app - just log and continue
+        console.error('[HAP-496] Failed to save sync state', e);
+    }
+}
+
+/**
+ * HAP-496: Clear persisted sync state.
+ *
+ * Called on logout or when state needs to be reset.
+ */
+export function clearSyncState(): void {
+    mmkv.remove('sync-state');
+}

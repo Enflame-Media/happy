@@ -20,7 +20,7 @@ import { isRunningOnMac } from '@/utils/platform';
 import { NormalizedMessage, normalizeRawMessage, RawRecord } from './typesRaw';
 import { applySettings, Settings, settingsDefaults, settingsParse } from './settings';
 import { Profile, profileParse } from './profile';
-import { loadPendingSettings, savePendingSettings } from './persistence';
+import { loadPendingSettings, savePendingSettings, loadSyncState, saveSyncState } from './persistence';
 import { initializeTracking, tracking } from '@/track';
 import { parseToken } from '@/utils/parseToken';
 import { RevenueCat, LogLevel, PaywallResult } from './revenueCat';
@@ -42,6 +42,7 @@ import { FeedItem } from './feedTypes';
 import { UserProfile } from './friendTypes';
 import { parseCursorCounterOrDefault, isValidCursor } from './cursorUtils';
 import { initializeTodoSync } from '../-zen/model/ops';
+import { createAdvancedDebounce } from '@/utils/debounce';
 
 /**
  * HAP-441: Delta sync response type from server.
@@ -154,6 +155,16 @@ class Sync {
      */
     private profileETag: string | null = null;
 
+    /**
+     * HAP-496: Debounced sync state persistence.
+     * Persists sync cursors/ETags to storage with 5-second debounce.
+     * Has flush() for immediate persist on app background.
+     */
+    private syncStatePersistence = createAdvancedDebounce<void>(
+        () => this.persistSyncStateNow(),
+        { delay: 5000, immediateCount: 0 }
+    );
+
     // Generic locking mechanism
     private recalculationLockCount = 0;
     private lastRecalculationTime = 0;
@@ -184,11 +195,16 @@ class Sync {
         this.pushTokenSync = new InvalidateSync(registerPushToken);
         this.activityAccumulator = new ActivityUpdateAccumulator(this.flushActivityUpdates.bind(this), 2000);
 
-        // Listen for app state changes to refresh purchases
+        // Listen for app state changes to refresh purchases and persist state
         this.appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
             if (nextAppState === 'active') {
                 log.log('📱 App became active');
                 this.invalidateOnResume();
+            } else if (nextAppState === 'background' || nextAppState === 'inactive') {
+                // HAP-496: Flush sync state immediately when app goes to background
+                // This ensures cursors/ETags are persisted before the app might be killed
+                log.log(`📱 App state changed to: ${nextAppState}, flushing sync state`);
+                this.syncStatePersistence.flush();
             } else {
                 log.log(`📱 App state changed to: ${nextAppState}`);
             }
@@ -289,9 +305,15 @@ class Sync {
     destroy() {
         this.appStateSubscription?.remove();
         this.socketCleanups.forEach((cleanup) => cleanup());
+        // HAP-496: Cancel any pending sync state persistence and flush immediately
+        this.syncStatePersistence.flush();
     }
 
     async #init() {
+
+        // HAP-496: Load persisted sync state before invalidating syncs
+        // This enables incremental sync on app restart instead of full fetch
+        this.loadPersistedSyncState();
 
         // Subscribe to updates
         this.subscribeToUpdates();
@@ -1510,9 +1532,11 @@ class Sync {
         }
 
         // HAP-491: Store ETag from response for next conditional request
+        // HAP-496: Schedule persistence when ETag changes
         const newETag = response.headers.get('ETag');
-        if (newETag) {
+        if (newETag && newETag !== this.profileETag) {
             this.profileETag = newETag;
+            this.scheduleSyncStatePersist();
         }
 
         const data = await response.json();
@@ -1709,7 +1733,9 @@ class Sync {
         }
 
         // Update the cursor for next fetch
+        // HAP-496: Schedule persistence when cursor changes
         this.sessionLastSeq.set(sessionId, maxSeq);
+        this.scheduleSyncStatePersist();
 
         console.log('Batch decrypted and normalized messages in', Date.now() - start, 'ms');
         console.log('normalizedMessages', JSON.stringify(normalizedMessages));
@@ -1923,12 +1949,14 @@ class Sync {
     /**
      * HAP-441: Track the last known sequence number for an entity type.
      * Called whenever we receive an update to ensure we know the latest seq.
+     * HAP-496: Schedules sync state persistence when seq changes.
      */
     private trackSeq(entityType: string, seq: number | undefined) {
         if (seq === undefined) return;
         const currentSeq = this.lastKnownSeq.get(entityType) ?? 0;
         if (seq > currentSeq) {
             this.lastKnownSeq.set(entityType, seq);
+            this.scheduleSyncStatePersist(); // HAP-496
         }
     }
 
@@ -1937,6 +1965,60 @@ class Sync {
      */
     private getLastKnownSeq(entityType: string): number {
         return this.lastKnownSeq.get(entityType) ?? 0;
+    }
+
+    /**
+     * HAP-496: Load persisted sync state from storage.
+     *
+     * Restores cursor/ETag/seq data from previous session if fresh (< 24h).
+     * Called in #init() before invalidating syncs to enable immediate
+     * incremental sync on app restart.
+     */
+    private loadPersistedSyncState(): void {
+        const state = loadSyncState();
+        if (!state) {
+            log.log('[HAP-496] No persisted sync state found (first launch or expired)');
+            return;
+        }
+
+        // Restore sessionLastSeq
+        const sessionCount = Object.keys(state.sessionLastSeq).length;
+        for (const [sessionId, seq] of Object.entries(state.sessionLastSeq)) {
+            this.sessionLastSeq.set(sessionId, seq);
+        }
+
+        // Restore profileETag
+        this.profileETag = state.profileETag;
+
+        // Restore entity sequence numbers
+        const entityCount = Object.keys(state.entitySeq).length;
+        for (const [entityType, seq] of Object.entries(state.entitySeq)) {
+            this.lastKnownSeq.set(entityType, seq);
+        }
+
+        log.log(`[HAP-496] Restored sync state: ${sessionCount} sessions, ${entityCount} entities, ETag=${state.profileETag ? 'present' : 'none'}`);
+    }
+
+    /**
+     * HAP-496: Persist current sync state to storage immediately.
+     *
+     * Called by the debounced wrapper and on app background.
+     */
+    private persistSyncStateNow(): void {
+        saveSyncState({
+            sessionLastSeq: Object.fromEntries(this.sessionLastSeq),
+            profileETag: this.profileETag,
+            entitySeq: Object.fromEntries(this.lastKnownSeq),
+        });
+    }
+
+    /**
+     * HAP-496: Schedule sync state persistence (debounced).
+     *
+     * Should be called whenever sessionLastSeq, profileETag, or lastKnownSeq changes.
+     */
+    private scheduleSyncStatePersist(): void {
+        this.syncStatePersistence.debounced();
     }
 
     private handleUpdate = async (update: unknown) => {
