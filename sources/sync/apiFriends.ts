@@ -8,8 +8,7 @@ import {
     UsersSearchResponseSchema
 } from './friendTypes';
 import { AppError, ErrorCodes } from '@/utils/errors';
-import { checkAuthError, deduplicatedFetch } from './apiHelper';
-import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
+import { authenticatedFetch } from './apiHelper';
 
 /**
  * Search for users by username (returns multiple results)
@@ -21,17 +20,14 @@ export async function searchUsersByUsername(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetchWithTimeout(
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
             `${API_ENDPOINT}/v1/users/search?${new URLSearchParams({ query: username })}`,
-            {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${credentials.token}`
-                }
-            }
+            credentials,
+            { method: 'GET' },
+            'searching users'
         );
 
-        checkAuthError(response, 'searching users');
         if (!response.ok) {
             if (response.status === 404) {
                 return [];
@@ -45,7 +41,7 @@ export async function searchUsersByUsername(
             console.error('Failed to parse search response:', parsed.error);
             return [];
         }
-        
+
         return parsed.data.users;
     });
 }
@@ -60,17 +56,14 @@ export async function getUserProfile(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await deduplicatedFetch(
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
             `${API_ENDPOINT}/v1/users/${userId}`,
-            {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${credentials.token}`
-                }
-            }
+            credentials,
+            { method: 'GET', useDedupe: true },
+            'getting user profile'
         );
 
-        checkAuthError(response, 'getting user profile');
         if (!response.ok) {
             if (response.status === 404) {
                 return null;
@@ -116,16 +109,18 @@ export async function sendFriendRequest(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/friends/add`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${credentials.token}`,
-                'Content-Type': 'application/json'
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
+            `${API_ENDPOINT}/v1/friends/add`,
+            credentials,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid: recipientId })
             },
-            body: JSON.stringify({ uid: recipientId })
-        });
+            'adding friend'
+        );
 
-        checkAuthError(response, 'adding friend');
         if (!response.ok) {
             if (response.status === 404) {
                 return null;
@@ -159,14 +154,14 @@ export async function getFriendsList(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await deduplicatedFetch(`${API_ENDPOINT}/v1/friends`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${credentials.token}`
-            }
-        });
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
+            `${API_ENDPOINT}/v1/friends`,
+            credentials,
+            { method: 'GET', useDedupe: true },
+            'getting friends list'
+        );
 
-        checkAuthError(response, 'getting friends list');
         if (!response.ok) {
             throw new AppError(ErrorCodes.FETCH_FAILED, `Failed to get friends list: ${response.status}`, { canTryAgain: true });
         }
@@ -192,16 +187,18 @@ export async function removeFriend(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/friends/remove`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${credentials.token}`,
-                'Content-Type': 'application/json'
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
+            `${API_ENDPOINT}/v1/friends/remove`,
+            credentials,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid: friendId })
             },
-            body: JSON.stringify({ uid: friendId })
-        });
+            'removing friend'
+        );
 
-        checkAuthError(response, 'removing friend');
         if (!response.ok) {
             if (response.status === 404) {
                 return null;

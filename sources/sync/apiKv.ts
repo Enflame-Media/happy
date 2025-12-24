@@ -2,8 +2,7 @@ import { AuthCredentials } from '@/auth/tokenStorage';
 import { backoff } from '@/utils/time';
 import { getServerUrl } from './serverConfig';
 import { AppError, ErrorCodes } from '@/utils/errors';
-import { checkAuthError, deduplicatedFetch } from './apiHelper';
-import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
+import { authenticatedFetch } from './apiHelper';
 
 //
 // Types
@@ -76,13 +75,14 @@ export async function kvGet(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await deduplicatedFetch(`${API_ENDPOINT}/v1/kv/${encodeURIComponent(key)}`, {
-            headers: {
-                'Authorization': `Bearer ${credentials.token}`
-            }
-        });
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
+            `${API_ENDPOINT}/v1/kv/${encodeURIComponent(key)}`,
+            credentials,
+            { useDedupe: true },
+            'getting KV value'
+        );
 
-        checkAuthError(response, 'getting KV value');
         if (response.status === 404) {
             return null;
         }
@@ -118,13 +118,14 @@ export async function kvList(
         : `${API_ENDPOINT}/v1/kv`;
 
     return await backoff(async () => {
-        const response = await deduplicatedFetch(url, {
-            headers: {
-                'Authorization': `Bearer ${credentials.token}`
-            }
-        });
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
+            url,
+            credentials,
+            { useDedupe: true },
+            'listing KV items'
+        );
 
-        checkAuthError(response, 'listing KV items');
         if (!response.ok) {
             throw new AppError(ErrorCodes.FETCH_FAILED, `Failed to list KV items: ${response.status}`, { canTryAgain: true });
         }
@@ -152,16 +153,18 @@ export async function kvBulkGet(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/kv/bulk`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${credentials.token}`,
-                'Content-Type': 'application/json'
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
+            `${API_ENDPOINT}/v1/kv/bulk`,
+            credentials,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keys })
             },
-            body: JSON.stringify({ keys })
-        });
+            'bulk getting KV values'
+        );
 
-        checkAuthError(response, 'bulk getting KV values');
         if (!response.ok) {
             throw new AppError(ErrorCodes.FETCH_FAILED, `Failed to bulk get KV values: ${response.status}`, { canTryAgain: true });
         }
@@ -191,16 +194,18 @@ export async function kvMutate(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/kv`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${credentials.token}`,
-                'Content-Type': 'application/json'
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
+            `${API_ENDPOINT}/v1/kv`,
+            credentials,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mutations })
             },
-            body: JSON.stringify({ mutations })
-        });
+            'mutating KV values'
+        );
 
-        checkAuthError(response, 'mutating KV values');
         if (response.status === 409) {
             const data = await response.json() as KvMutateErrorResponse;
             return data;

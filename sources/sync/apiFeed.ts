@@ -4,7 +4,7 @@ import { getServerUrl } from './serverConfig';
 import { FeedResponseSchema, FeedItem } from './feedTypes';
 import { log } from '@/log';
 import { AppError, ErrorCodes } from '@/utils/errors';
-import { checkAuthError, deduplicatedFetch } from './apiHelper';
+import { authenticatedFetch } from './apiHelper';
 import { parseCursorCounterOrDefault, isValidCursor } from './cursorUtils';
 
 /**
@@ -19,24 +19,24 @@ export async function fetchFeed(
     }
 ): Promise<{ items: FeedItem[]; hasMore: boolean }> {
     const API_ENDPOINT = getServerUrl();
-    
+
     return await backoff(async () => {
         const params = new URLSearchParams();
         if (options?.limit) params.set('limit', options.limit.toString());
         if (options?.before) params.set('before', options.before);
         if (options?.after) params.set('after', options.after);
-        
+
         const url = `${API_ENDPOINT}/v1/feed${params.toString() ? `?${params}` : ''}`;
         log.log(`📰 Fetching feed: ${url}`);
-        
-        const response = await deduplicatedFetch(url, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${credentials.token}`
-            }
-        });
 
-        checkAuthError(response, 'fetching feed');
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
+            url,
+            credentials,
+            { method: 'GET', useDedupe: true },
+            'fetching feed'
+        );
+
         if (!response.ok) {
             throw new AppError(ErrorCodes.FETCH_FAILED, `Failed to fetch feed: ${response.status}`, { canTryAgain: true });
         }

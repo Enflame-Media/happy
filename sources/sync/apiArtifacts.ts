@@ -3,8 +3,7 @@ import { backoff } from '@/utils/time';
 import { getServerUrl } from './serverConfig';
 import { Artifact, ArtifactCreateRequest, ArtifactUpdateRequest, ArtifactUpdateResponse } from './artifactTypes';
 import { AppError, ErrorCodes } from '@/utils/errors';
-import { checkAuthError, deduplicatedFetch } from './apiHelper';
-import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
+import { authenticatedFetch } from './apiHelper';
 
 /**
  * Response from fetch artifacts endpoint
@@ -32,14 +31,14 @@ export async function fetchArtifacts(credentials: AuthCredentials, sinceSeq?: nu
             url.searchParams.set('sinceSeq', sinceSeq.toString());
         }
 
-        const response = await deduplicatedFetch(url.toString(), {
-            headers: {
-                'Authorization': `Bearer ${credentials.token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
+            url.toString(),
+            credentials,
+            { useDedupe: true, headers: { 'Content-Type': 'application/json' } },
+            'fetching artifacts'
+        );
 
-        checkAuthError(response, 'fetching artifacts');
         if (!response.ok) {
             throw new AppError(ErrorCodes.FETCH_FAILED, `Failed to fetch artifacts: ${response.status}`, { canTryAgain: true });
         }
@@ -59,14 +58,14 @@ export async function fetchArtifact(credentials: AuthCredentials, artifactId: st
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await deduplicatedFetch(`${API_ENDPOINT}/v1/artifacts/${artifactId}`, {
-            headers: {
-                'Authorization': `Bearer ${credentials.token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
+            `${API_ENDPOINT}/v1/artifacts/${artifactId}`,
+            credentials,
+            { useDedupe: true, headers: { 'Content-Type': 'application/json' } },
+            'fetching artifact'
+        );
 
-        checkAuthError(response, 'fetching artifact');
         if (!response.ok) {
             if (response.status === 404) {
                 throw new AppError(ErrorCodes.NOT_FOUND, 'Artifact not found');
@@ -89,16 +88,18 @@ export async function createArtifact(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/artifacts`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${credentials.token}`,
-                'Content-Type': 'application/json'
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
+            `${API_ENDPOINT}/v1/artifacts`,
+            credentials,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(request)
             },
-            body: JSON.stringify(request)
-        });
+            'creating artifact'
+        );
 
-        checkAuthError(response, 'creating artifact');
         if (!response.ok) {
             if (response.status === 409) {
                 throw new AppError(ErrorCodes.ALREADY_EXISTS, 'Artifact ID already exists');
@@ -122,16 +123,18 @@ export async function updateArtifact(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/artifacts/${artifactId}`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${credentials.token}`,
-                'Content-Type': 'application/json'
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
+            `${API_ENDPOINT}/v1/artifacts/${artifactId}`,
+            credentials,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(request)
             },
-            body: JSON.stringify(request)
-        });
+            'updating artifact'
+        );
 
-        checkAuthError(response, 'updating artifact');
         if (!response.ok) {
             if (response.status === 404) {
                 throw new AppError(ErrorCodes.NOT_FOUND, 'Artifact not found');
@@ -154,14 +157,14 @@ export async function deleteArtifact(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/artifacts/${artifactId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${credentials.token}`
-            }
-        });
+        // HAP-519: Use authenticatedFetch for automatic 401 retry after token refresh
+        const response = await authenticatedFetch(
+            `${API_ENDPOINT}/v1/artifacts/${artifactId}`,
+            credentials,
+            { method: 'DELETE' },
+            'deleting artifact'
+        );
 
-        checkAuthError(response, 'deleting artifact');
         if (!response.ok) {
             if (response.status === 404) {
                 throw new AppError(ErrorCodes.NOT_FOUND, 'Artifact not found');

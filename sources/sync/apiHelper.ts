@@ -9,6 +9,8 @@
 
 import { AppError, ErrorCodes } from '@/utils/errors';
 import { getCurrentAuth } from '@/auth/AuthContext';
+import { AuthCredentials } from '@/auth/tokenStorage';
+import { fetchWithTimeout, FetchWithTimeoutOptions } from '@/utils/fetchWithTimeout';
 
 // Re-export deduplication utilities for convenient access
 export {
@@ -18,6 +20,8 @@ export {
     clearInFlightRequests,
     type DeduplicatedFetchOptions,
 } from '@/utils/requestDeduplication';
+
+import { deduplicatedFetch } from '@/utils/requestDeduplication';
 
 /**
  * Checks an API response for authentication errors and throws TOKEN_EXPIRED if 401.
@@ -148,4 +152,96 @@ export function is404Error(error: unknown): boolean {
                message.includes('not found');
     }
     return false;
+}
+
+/**
+ * Options for authenticatedFetch.
+ */
+export interface AuthenticatedFetchOptions extends Omit<FetchWithTimeoutOptions, 'headers'> {
+    /** Request headers (Authorization will be added automatically) */
+    headers?: Record<string, string>;
+    /** Use deduplicatedFetch for GET requests to prevent duplicate in-flight requests */
+    useDedupe?: boolean;
+}
+
+/**
+ * Makes an authenticated HTTP request with automatic 401 retry after token refresh.
+ *
+ * HAP-519: This function handles 401 Unauthorized responses gracefully by:
+ * 1. Making the initial request with the current token
+ * 2. On 401, attempting to refresh the token via AuthContext
+ * 3. If refresh succeeds, retrying the request with the new token
+ * 4. If refresh fails or retry still returns 401, throwing TOKEN_EXPIRED
+ *
+ * @param url - The URL to fetch
+ * @param credentials - Auth credentials containing the token
+ * @param options - Fetch options (useDedupe for GET requests, timeoutMs for mutations)
+ * @param context - Context string for error messages (e.g., 'fetching artifacts')
+ * @returns Promise that resolves with the Response
+ * @throws AppError with TOKEN_EXPIRED code if authentication fails after refresh attempt
+ *
+ * @example
+ * ```typescript
+ * // GET request with deduplication
+ * const response = await authenticatedFetch(
+ *     `${API_ENDPOINT}/v1/artifacts`,
+ *     credentials,
+ *     { useDedupe: true },
+ *     'fetching artifacts'
+ * );
+ *
+ * // POST request with timeout
+ * const response = await authenticatedFetch(
+ *     `${API_ENDPOINT}/v1/artifacts`,
+ *     credentials,
+ *     { method: 'POST', body: JSON.stringify(data) },
+ *     'creating artifact'
+ * );
+ * ```
+ */
+export async function authenticatedFetch(
+    url: string,
+    credentials: AuthCredentials,
+    options: AuthenticatedFetchOptions = {},
+    context?: string
+): Promise<Response> {
+    const { useDedupe = false, headers = {}, ...fetchOptions } = options;
+
+    const makeRequest = async (token: string): Promise<Response> => {
+        const requestOptions = {
+            ...fetchOptions,
+            headers: {
+                ...headers,
+                'Authorization': `Bearer ${token}`,
+            },
+        };
+
+        if (useDedupe) {
+            return deduplicatedFetch(url, requestOptions);
+        }
+        return fetchWithTimeout(url, requestOptions);
+    };
+
+    // First attempt with current token
+    let response = await makeRequest(credentials.token);
+
+    // Check for 401 and attempt refresh
+    if (response.status === 401) {
+        console.log('[authenticatedFetch] Received 401, attempting token refresh...');
+
+        const refreshResult = await checkAuthErrorWithRefresh(response, context);
+        if (refreshResult?.refreshed) {
+            console.log('[authenticatedFetch] Token refreshed, retrying request...');
+            response = await makeRequest(refreshResult.newToken);
+
+            // If still 401 after refresh, throw immediately
+            if (response.status === 401) {
+                console.log('[authenticatedFetch] Retry still returned 401, throwing TOKEN_EXPIRED');
+                checkAuthError(response, context);
+            }
+        }
+        // If we get here without refreshResult, checkAuthErrorWithRefresh already threw
+    }
+
+    return response;
 }
