@@ -6,6 +6,7 @@ import { log } from '@/log';
 import { AppError, ErrorCodes } from '@/utils/errors';
 import { checkAuthError } from './apiHelper';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
+import { parseCursorCounterOrDefault, isValidCursor } from './cursorUtils';
 
 /**
  * Fetch user's feed with pagination
@@ -49,11 +50,20 @@ export async function fetchFeed(
             throw new AppError(ErrorCodes.VALIDATION_FAILED, 'Invalid feed response format');
         }
 
-        // Add counter field from cursor
-        const itemsWithCounter: FeedItem[] = parsed.data.items.map(item => ({
-            ...item,
-            counter: parseInt(item.cursor.substring(2), 10) // Extract counter from cursor format "0-{counter}"
-        }));
+        // Add counter field from cursor with validation
+        // Invalid cursors fall back to counter 0 (first page behavior)
+        const itemsWithCounter: FeedItem[] = parsed.data.items
+            .filter(item => {
+                if (!isValidCursor(item.cursor)) {
+                    log.log(`⚠️ Skipping feed item ${item.id} with invalid cursor: ${item.cursor}`);
+                    return false;
+                }
+                return true;
+            })
+            .map(item => ({
+                ...item,
+                counter: parseCursorCounterOrDefault(item.cursor)
+            }));
 
         return {
             items: itemsWithCounter,

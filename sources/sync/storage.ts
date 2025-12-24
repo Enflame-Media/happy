@@ -20,6 +20,7 @@ import { isMutableTool } from "@/components/tools/knownTools";
 import { projectManager } from "./projectManager";
 import { DecryptedArtifact } from "./artifactTypes";
 import { FeedItem } from "./feedTypes";
+import { parseCursorCounter } from "./cursorUtils";
 import { t } from "@/text";
 import { getLastUserMessagePreview } from "@/utils/sessionUtils";
 
@@ -1039,11 +1040,14 @@ export const storage = create<StorageState>()((set, get) => {
                     updatedItems.push(newItem);
                 }
 
-                // Update head/tail cursors
-                if (!head || newItem.counter > parseInt(head.substring(2), 10)) {
+                // Update head/tail cursors with safe parsing
+                const headCounter = parseCursorCounter(head);
+                const tailCounter = parseCursorCounter(tail);
+
+                if (headCounter === null || newItem.counter > headCounter) {
                     head = newItem.cursor;
                 }
-                if (!tail || newItem.counter < parseInt(tail.substring(2), 10)) {
+                if (tailCounter === null || newItem.counter < tailCounter) {
                     tail = newItem.cursor;
                 }
             });

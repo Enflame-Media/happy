@@ -40,6 +40,7 @@ import { getFriendsList, getUserProfile } from './apiFriends';
 import { fetchFeed } from './apiFeed';
 import { FeedItem } from './feedTypes';
 import { UserProfile } from './friendTypes';
+import { parseCursorCounterOrDefault, isValidCursor } from './cursorUtils';
 import { initializeTodoSync } from '../-zen/model/ops';
 
 /**
@@ -2352,15 +2353,21 @@ class Sync {
         } else if (updateData.body.t === 'new-feed-post') {
             log.log('📰 Received new-feed-post update');
             const feedUpdate = updateData.body;
-            
-            // Convert to FeedItem with counter from cursor
+
+            // Validate cursor format before processing
+            if (!isValidCursor(feedUpdate.cursor)) {
+                log.log(`⚠️ Skipping feed update with invalid cursor: ${feedUpdate.cursor}`);
+                return;
+            }
+
+            // Convert to FeedItem with counter from validated cursor
             const feedItem: FeedItem = {
                 id: feedUpdate.id,
                 body: feedUpdate.body,
                 cursor: feedUpdate.cursor,
                 createdAt: feedUpdate.createdAt,
                 repeatKey: feedUpdate.repeatKey,
-                counter: parseInt(feedUpdate.cursor.substring(2), 10)
+                counter: parseCursorCounterOrDefault(feedUpdate.cursor)
             };
             
             // Check if we need to fetch user for friend-related items
