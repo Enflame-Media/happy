@@ -162,3 +162,86 @@ export function getAppErrorUserMessageWithSupportId(error: AppError): string {
 export function getSupportId(): string {
     return getLastFailedCorrelationId() ?? getDisplayCorrelationId();
 }
+
+/**
+ * Error codes that indicate server-side issues where correlation ID tracing is valuable.
+ * These are errors where the Support ID helps support staff trace the issue in server logs.
+ *
+ * @remarks
+ * Server errors = errors where something went wrong on the network/API/server side.
+ * For these, the correlation ID in server logs helps diagnose the issue.
+ *
+ * Local errors (validation, configuration) don't benefit from server tracing
+ * since the problem originates in the client.
+ */
+const SERVER_ERROR_CODES: ReadonlySet<string> = new Set([
+    // Network/API errors
+    'FETCH_FAILED',
+    'FETCH_ABORTED',
+    'TIMEOUT',
+    'API_ERROR',
+
+    // Service/sync errors
+    'SERVICE_ERROR',
+    'SERVICE_NOT_CONNECTED',
+    'SYNC_FAILED',
+
+    // Socket/RPC errors
+    'RPC_FAILED',
+    'SOCKET_NOT_CONNECTED',
+
+    // Encryption errors (may involve server-side issues)
+    'ENCRYPTION_ERROR',
+    'DECRYPTION_FAILED',
+]);
+
+/**
+ * Check if an error code represents a server-side issue.
+ *
+ * Server errors are those where the Support ID can help trace
+ * the issue through server logs. Local errors (validation,
+ * configuration) don't need this tracing.
+ *
+ * @param code - The error code to check
+ * @returns True if this is a server-related error
+ *
+ * @example
+ * ```typescript
+ * isServerError('FETCH_FAILED'); // true
+ * isServerError('INVALID_INPUT'); // false
+ * ```
+ */
+export function isServerError(code: string): boolean {
+    return SERVER_ERROR_CODES.has(code);
+}
+
+/**
+ * Get a smart error message that includes Support ID only for server-related errors.
+ *
+ * HAP-525: This is the recommended function for displaying error messages to users.
+ * It automatically determines whether to include the Support ID based on the error type:
+ * - Server errors (network, API, sync) → includes Support ID for tracing
+ * - Local errors (validation, configuration) → no Support ID (not useful)
+ *
+ * @param error - The AppError instance
+ * @returns User-friendly message, with Support ID for server errors
+ *
+ * @example
+ * ```typescript
+ * // Server error - includes Support ID
+ * const networkError = new AppError(ErrorCodes.FETCH_FAILED, 'Network error');
+ * getSmartErrorMessage(networkError);
+ * // Returns: "Unable to connect. Please check your internet connection. (Support ID: ef1234567890)"
+ *
+ * // Local error - no Support ID
+ * const validationError = new AppError(ErrorCodes.INVALID_INPUT, 'Bad input');
+ * getSmartErrorMessage(validationError);
+ * // Returns: "Please check your input and try again."
+ * ```
+ */
+export function getSmartErrorMessage(error: AppError): string {
+    if (isServerError(error.code)) {
+        return getAppErrorUserMessageWithSupportId(error);
+    }
+    return getAppErrorUserMessage(error);
+}

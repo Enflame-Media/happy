@@ -4,6 +4,7 @@ import { StyleSheet } from 'react-native-unistyles';
 import { Typography } from '@/constants/Typography';
 import { RoundButton } from '@/components/RoundButton';
 import { t } from '@/text';
+import { getSupportId } from '@/utils/errors';
 
 /**
  * Props for the ErrorBoundary component.
@@ -83,10 +84,16 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             }
 
             // Default fallback UI with retry option
+            // HAP-525: Include Support ID for error tracing
+            const supportId = getSupportId();
+
             return (
                 <View style={styles.container}>
                     <Text style={styles.title}>{t('components.errorBoundary.title')}</Text>
                     <Text style={styles.message}>{t('components.errorBoundary.message')}</Text>
+                    <Text style={styles.supportId}>
+                        {t('components.errorBoundary.supportId', { id: supportId })}
+                    </Text>
                     <View style={styles.buttonContainer}>
                         <RoundButton
                             title={t('common.retry')}
@@ -122,8 +129,16 @@ const styles = StyleSheet.create((theme) => ({
         fontSize: 16,
         color: theme.colors.textSecondary,
         textAlign: 'center',
-        marginBottom: 24,
+        marginBottom: 12,
         maxWidth: 300,
+    },
+    supportId: {
+        ...Typography.default(),
+        fontSize: 12,
+        color: theme.colors.textSecondary,
+        textAlign: 'center',
+        marginBottom: 24,
+        opacity: 0.7,
     },
     buttonContainer: {
         width: 160,

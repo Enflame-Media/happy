@@ -529,6 +529,7 @@ export const ca: TranslationStructure = {
             // Used by ErrorBoundary component
             title: 'Alguna cosa ha fallat',
             message: 'S\'ha produït un error en aquesta secció. Torna-ho a provar o reinicia l\'aplicació si el problema persisteix.',
+            supportId: ({ id }: { id: string }) => `ID de Suport: ${id}`,
         },
         chatFooter: {
             // Used by ChatFooter component

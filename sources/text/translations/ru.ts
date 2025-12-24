@@ -488,6 +488,7 @@ export const ru: TranslationStructure = {
             // Used by ErrorBoundary component
             title: 'Что-то пошло не так',
             message: 'В этом разделе произошла ошибка. Попробуйте снова или перезапустите приложение, если проблема не исчезнет.',
+            supportId: ({ id }: { id: string }) => `ID поддержки: ${id}`,
         },
         chatFooter: {
             // Used by ChatFooter component

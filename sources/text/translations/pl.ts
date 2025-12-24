@@ -539,6 +539,7 @@ export const pl: TranslationStructure = {
             // Used by ErrorBoundary component
             title: 'Coś poszło nie tak',
             message: 'Wystąpił błąd w tej sekcji. Spróbuj ponownie lub uruchom aplikację ponownie, jeśli problem nie ustępuje.',
+            supportId: ({ id }: { id: string }) => `ID wsparcia: ${id}`,
         },
         chatFooter: {
             // Used by ChatFooter component

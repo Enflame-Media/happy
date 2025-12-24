@@ -531,6 +531,7 @@ export const zhHans: TranslationStructure = {
             // Used by ErrorBoundary component
             title: '出错了',
             message: '此部分发生错误。请重试，如果问题仍然存在，请重新启动应用程序。',
+            supportId: ({ id }: { id: string }) => `支持 ID: ${id}`,
         },
         chatFooter: {
             // Used by ChatFooter component

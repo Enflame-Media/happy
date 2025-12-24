@@ -530,6 +530,7 @@ export const en = {
             // Used by ErrorBoundary component
             title: 'Something went wrong',
             message: 'An error occurred in this section. Try again or restart the app if the problem persists.',
+            supportId: ({ id }: { id: string }) => `Support ID: ${id}`,
         },
         chatFooter: {
             // Used by ChatFooter component
