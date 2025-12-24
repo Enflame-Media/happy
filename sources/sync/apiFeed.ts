@@ -4,8 +4,7 @@ import { getServerUrl } from './serverConfig';
 import { FeedResponseSchema, FeedItem } from './feedTypes';
 import { log } from '@/log';
 import { AppError, ErrorCodes } from '@/utils/errors';
-import { checkAuthError } from './apiHelper';
-import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
+import { checkAuthError, deduplicatedFetch } from './apiHelper';
 import { parseCursorCounterOrDefault, isValidCursor } from './cursorUtils';
 
 /**
@@ -30,7 +29,7 @@ export async function fetchFeed(
         const url = `${API_ENDPOINT}/v1/feed${params.toString() ? `?${params}` : ''}`;
         log.log(`📰 Fetching feed: ${url}`);
         
-        const response = await fetchWithTimeout(url, {
+        const response = await deduplicatedFetch(url, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`

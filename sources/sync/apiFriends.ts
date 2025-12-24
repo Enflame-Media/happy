@@ -8,7 +8,7 @@ import {
     UsersSearchResponseSchema
 } from './friendTypes';
 import { AppError, ErrorCodes } from '@/utils/errors';
-import { checkAuthError } from './apiHelper';
+import { checkAuthError, deduplicatedFetch } from './apiHelper';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 
 /**
@@ -60,7 +60,7 @@ export async function getUserProfile(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetchWithTimeout(
+        const response = await deduplicatedFetch(
             `${API_ENDPOINT}/v1/users/${userId}`,
             {
                 method: 'GET',
@@ -159,7 +159,7 @@ export async function getFriendsList(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/friends`, {
+        const response = await deduplicatedFetch(`${API_ENDPOINT}/v1/friends`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`

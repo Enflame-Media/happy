@@ -2,6 +2,7 @@ import { AuthCredentials } from '@/auth/tokenStorage';
 import { backoff } from '@/utils/time';
 import { getServerUrl } from './serverConfig';
 import { AppError, ErrorCodes } from '@/utils/errors';
+import { deduplicatedFetch } from './apiHelper';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 
 export interface GitHubOAuthParams {
@@ -29,7 +30,7 @@ export async function getGitHubOAuthParams(credentials: AuthCredentials): Promis
     const API_ENDPOINT = getServerUrl();
     
     return await backoff(async () => {
-        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/connect/github/params`, {
+        const response = await deduplicatedFetch(`${API_ENDPOINT}/v1/connect/github/params`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`,
@@ -57,7 +58,7 @@ export async function getAccountProfile(credentials: AuthCredentials): Promise<A
     const API_ENDPOINT = getServerUrl();
     
     return await backoff(async () => {
-        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/account/profile`, {
+        const response = await deduplicatedFetch(`${API_ENDPOINT}/v1/account/profile`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${credentials.token}`,

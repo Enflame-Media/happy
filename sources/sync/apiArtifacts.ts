@@ -3,7 +3,7 @@ import { backoff } from '@/utils/time';
 import { getServerUrl } from './serverConfig';
 import { Artifact, ArtifactCreateRequest, ArtifactUpdateRequest, ArtifactUpdateResponse } from './artifactTypes';
 import { AppError, ErrorCodes } from '@/utils/errors';
-import { checkAuthError } from './apiHelper';
+import { checkAuthError, deduplicatedFetch } from './apiHelper';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 
 /**
@@ -32,7 +32,7 @@ export async function fetchArtifacts(credentials: AuthCredentials, sinceSeq?: nu
             url.searchParams.set('sinceSeq', sinceSeq.toString());
         }
 
-        const response = await fetchWithTimeout(url.toString(), {
+        const response = await deduplicatedFetch(url.toString(), {
             headers: {
                 'Authorization': `Bearer ${credentials.token}`,
                 'Content-Type': 'application/json'
@@ -59,7 +59,7 @@ export async function fetchArtifact(credentials: AuthCredentials, artifactId: st
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/artifacts/${artifactId}`, {
+        const response = await deduplicatedFetch(`${API_ENDPOINT}/v1/artifacts/${artifactId}`, {
             headers: {
                 'Authorization': `Bearer ${credentials.token}`,
                 'Content-Type': 'application/json'

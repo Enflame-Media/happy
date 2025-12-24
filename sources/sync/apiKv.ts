@@ -2,7 +2,7 @@ import { AuthCredentials } from '@/auth/tokenStorage';
 import { backoff } from '@/utils/time';
 import { getServerUrl } from './serverConfig';
 import { AppError, ErrorCodes } from '@/utils/errors';
-import { checkAuthError } from './apiHelper';
+import { checkAuthError, deduplicatedFetch } from './apiHelper';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 
 //
@@ -76,7 +76,7 @@ export async function kvGet(
     const API_ENDPOINT = getServerUrl();
 
     return await backoff(async () => {
-        const response = await fetchWithTimeout(`${API_ENDPOINT}/v1/kv/${encodeURIComponent(key)}`, {
+        const response = await deduplicatedFetch(`${API_ENDPOINT}/v1/kv/${encodeURIComponent(key)}`, {
             headers: {
                 'Authorization': `Bearer ${credentials.token}`
             }
@@ -118,7 +118,7 @@ export async function kvList(
         : `${API_ENDPOINT}/v1/kv`;
 
     return await backoff(async () => {
-        const response = await fetchWithTimeout(url, {
+        const response = await deduplicatedFetch(url, {
             headers: {
                 'Authorization': `Bearer ${credentials.token}`
             }
