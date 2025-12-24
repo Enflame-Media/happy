@@ -105,11 +105,16 @@ class Sync {
     private sessionsSync: InvalidateSync;
     private messagesSync = new LRUCache<string, InvalidateSync>(
         MAX_CACHED_MESSAGE_SYNCS,
-        (_, sync) => sync.stop()
+        (sessionId, sync) => {
+            sync.stop();
+            // Clean up associated data when session is evicted (HAP-469)
+            this.sessionLastSeq.delete(sessionId);
+        }
     );
     /**
      * Tracks the highest message sequence number received per session.
      * Used for cursor-based message fetching to only request new messages.
+     * Entries are automatically cleaned up when sessions are evicted from messagesSync.
      */
     private sessionLastSeq = new Map<string, number>();
     /**
