@@ -4,9 +4,19 @@
  * This module provides centralized handling for:
  * - 401 Unauthorized responses (triggers logout)
  * - Common error response parsing
+ * - Request deduplication for concurrent identical requests
  */
 
 import { AppError, ErrorCodes } from '@/utils/errors';
+
+// Re-export deduplication utilities for convenient access
+export {
+    deduplicatedFetch,
+    generateCacheKey,
+    getInFlightRequestCount,
+    clearInFlightRequests,
+    type DeduplicatedFetchOptions,
+} from '@/utils/requestDeduplication';
 
 /**
  * Checks an API response for authentication errors and throws TOKEN_EXPIRED if 401.
