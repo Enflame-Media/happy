@@ -2,6 +2,11 @@ import { TokenStorage } from '@/auth/tokenStorage';
 import { Encryption } from './encryption/encryption';
 import { AppError, ErrorCodes } from '@/utils/errors';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
+import {
+    CORRELATION_ID_HEADER,
+    getSessionCorrelationId,
+    generateRequestCorrelationId,
+} from '@/utils/correlationId';
 import * as Crypto from 'expo-crypto';
 
 //
@@ -148,6 +153,10 @@ class ApiSocket {
         // Build WebSocket URL
         const wsUrl = new URL('/v1/updates', this.config.endpoint);
         wsUrl.protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+
+        // HAP-510: Include session correlation ID in WebSocket URL for tracing
+        const sessionCorrelationId = getSessionCorrelationId();
+        wsUrl.searchParams.set('correlationId', sessionCorrelationId);
 
         // HAP-375: Try to fetch a ticket for secure authentication
         try {
@@ -542,8 +551,11 @@ class ApiSocket {
         }
 
         const url = `${this.config.endpoint}${path}`;
+        // HAP-510: Include correlation ID in all API requests
+        const correlationId = generateRequestCorrelationId();
         const headers = {
             'Authorization': `Bearer ${credentials.token}`,
+            [CORRELATION_ID_HEADER]: correlationId,
             ...options?.headers
         };
 
@@ -674,7 +686,9 @@ class ApiSocket {
                         event: 'auth',
                         data: {
                             token: this.config.token,
-                            clientType: 'user-scoped'
+                            clientType: 'user-scoped',
+                            // HAP-510: Include session correlation ID for request tracing
+                            correlationId: getSessionCorrelationId(),
                         }
                     }));
                 }

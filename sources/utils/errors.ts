@@ -13,11 +13,17 @@
  * - Reassuring: Don't alarm users unnecessarily
  *
  * Technical details are kept in the `cause` property for debugging/logging.
+ *
+ * HAP-510: Error messages now include correlation IDs for support.
+ * When an error occurs, users can report the "Support ID" to help
+ * support staff trace the issue in server logs.
  */
 
 // Re-export AppError, ErrorCodes, and types from shared package
 export { AppError, ErrorCodes } from '@happy/errors';
 export type { AppErrorOptions, AppErrorJSON, ErrorCode } from '@happy/errors';
+
+import { getLastFailedCorrelationId, getDisplayCorrelationId } from '@/utils/correlationId';
 
 /**
  * User-friendly messages for each error code.
@@ -113,4 +119,46 @@ import { AppError } from '@happy/errors';
  */
 export function getAppErrorUserMessage(error: AppError): string {
     return getUserFriendlyMessage(error.code);
+}
+
+/**
+ * Get the user-friendly message for an AppError with support ID.
+ *
+ * HAP-510: This version includes a correlation ID that users can report
+ * to support for issue tracing. Use this for errors that might need
+ * support investigation.
+ *
+ * @param error - The AppError instance
+ * @returns User-friendly message with support ID
+ *
+ * @example
+ * ```typescript
+ * const error = new AppError(ErrorCodes.FETCH_FAILED, 'Network error');
+ * console.log(getAppErrorUserMessageWithSupportId(error));
+ * // Returns: "Unable to connect. Please check your internet connection. (Support ID: ef1234567890)"
+ * ```
+ */
+export function getAppErrorUserMessageWithSupportId(error: AppError): string {
+    const baseMessage = getUserFriendlyMessage(error.code);
+
+    // Use the correlation ID from the failed request if available,
+    // otherwise fall back to the session ID
+    const correlationId = getLastFailedCorrelationId() ?? getDisplayCorrelationId();
+
+    return `${baseMessage} (Support ID: ${correlationId})`;
+}
+
+/**
+ * Get just the support ID for display in error dialogs.
+ *
+ * @returns The current support ID for user reporting
+ *
+ * @example
+ * ```typescript
+ * const supportId = getSupportId();
+ * // Returns: "ef1234567890"
+ * ```
+ */
+export function getSupportId(): string {
+    return getLastFailedCorrelationId() ?? getDisplayCorrelationId();
 }

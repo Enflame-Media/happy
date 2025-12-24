@@ -6,9 +6,15 @@
  * - Throws a dedicated TimeoutError when requests exceed the timeout
  * - Allows external abort signals to be combined with timeout
  * - Properly cleans up timeout timers to prevent memory leaks
+ * - Automatically includes correlation IDs for request tracing (HAP-510)
  */
 
 import { AppError, ErrorCodes } from '@/utils/errors';
+import {
+    CORRELATION_ID_HEADER,
+    generateRequestCorrelationId,
+    setLastFailedCorrelationId,
+} from '@/utils/correlationId';
 
 /**
  * Default timeout for fetch requests in milliseconds.
@@ -69,9 +75,16 @@ export async function fetchWithTimeout(
 ): Promise<Response> {
     const { timeoutMs = DEFAULT_FETCH_TIMEOUT_MS, signal: externalSignal, ...fetchOptions } = options;
 
+    // HAP-510: Generate correlation ID for request tracing
+    const correlationId = generateRequestCorrelationId();
+    const headersWithCorrelation = {
+        [CORRELATION_ID_HEADER]: correlationId,
+        ...fetchOptions.headers,
+    };
+
     // If timeout is disabled, just pass through to fetch
     if (timeoutMs === 0) {
-        return fetch(url, { ...fetchOptions, signal: externalSignal });
+        return fetch(url, { ...fetchOptions, headers: headersWithCorrelation, signal: externalSignal });
     }
 
     // Create our own AbortController for the timeout
@@ -104,10 +117,13 @@ export async function fetchWithTimeout(
     try {
         const response = await fetch(url, {
             ...fetchOptions,
+            headers: headersWithCorrelation,
             signal: timeoutController.signal
         });
         return response;
     } catch (error) {
+        // HAP-510: Store correlation ID for failed requests
+        setLastFailedCorrelationId(correlationId);
         // Check if this was a timeout (our controller aborted, not external)
         if (error instanceof Error && error.name === 'AbortError') {
             // Determine if this was our timeout or an external abort
