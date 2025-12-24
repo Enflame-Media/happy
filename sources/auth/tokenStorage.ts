@@ -17,9 +17,12 @@ function isSecureContext(): boolean {
 }
 
 function isValidCredentials(value: unknown): value is AuthCredentials {
-    return typeof value === 'object' && value !== null
-        && typeof (value as Record<string, unknown>).token === 'string'
-        && typeof (value as Record<string, unknown>).secret === 'string';
+    if (typeof value !== 'object' || value === null) return false;
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.token !== 'string' || typeof obj.secret !== 'string') return false;
+    // expiresAt is optional - if present, must be a number
+    if (obj.expiresAt !== undefined && typeof obj.expiresAt !== 'number') return false;
+    return true;
 }
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -94,6 +97,8 @@ let _credentialsCache: string | null = null;
 export interface AuthCredentials {
     token: string;
     secret: string;
+    /** Unix timestamp (ms) when the token expires. If not set, token is treated as never expiring (legacy). */
+    expiresAt?: number;
 }
 
 export const TokenStorage = {
