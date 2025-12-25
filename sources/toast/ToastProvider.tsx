@@ -23,6 +23,8 @@ import { ToastConfig, ToastState, ToastContextValue, ToastQueueConfig } from './
 const DEFAULT_DURATION = 5000; // 5 seconds for undo actions
 const DEFAULT_MAX_QUEUE_SIZE = 5;
 const DEFAULT_PREVENT_DUPLICATES = true;
+const DEFAULT_MAX_HIGH_PRIORITY_QUEUE_SIZE = 3;
+const DEFAULT_HIGH_PRIORITY_OVERFLOW: 'drop-oldest' | 'drop-newest' | 'downgrade' = 'drop-newest';
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
@@ -50,6 +52,8 @@ interface ToastProviderProps {
 export function ToastProvider({ children, queueConfig }: ToastProviderProps) {
     const maxQueueSize = queueConfig?.maxQueueSize ?? DEFAULT_MAX_QUEUE_SIZE;
     const preventDuplicates = queueConfig?.preventDuplicates ?? DEFAULT_PREVENT_DUPLICATES;
+    const maxHighPriorityQueueSize = queueConfig?.maxHighPriorityQueueSize ?? DEFAULT_MAX_HIGH_PRIORITY_QUEUE_SIZE;
+    const highPriorityOverflow = queueConfig?.highPriorityOverflow ?? DEFAULT_HIGH_PRIORITY_OVERFLOW;
 
     const [state, setState] = useState<ToastState>({ current: null, queue: [], interrupted: null });
     const insets = useSafeAreaInsets();
@@ -264,6 +268,108 @@ export function ToastProvider({ children, queueConfig }: ToastProviderProps) {
 
             // HIGH PRIORITY: Interrupt current toast and show immediately
             if (isHighPriority) {
+                // Count current high-priority toasts (current + queue)
+                const highPriorityInQueue = prev.queue.filter(t => t.priority === 'high').length;
+                const currentIsHighPriority = prev.current?.priority === 'high';
+                const totalHighPriority = highPriorityInQueue + (currentIsHighPriority ? 1 : 0);
+
+                // Check if high-priority queue is at capacity
+                if (totalHighPriority >= maxHighPriorityQueueSize) {
+                    switch (highPriorityOverflow) {
+                        case 'drop-newest':
+                            // Reject the new high-priority toast
+                            console.warn('[Toast] High-priority queue full, dropping new toast');
+                            return prev;
+
+                        case 'drop-oldest': {
+                            // Remove oldest high-priority from queue to make room
+                            const firstHighPriorityIndex = prev.queue.findIndex(t => t.priority === 'high');
+                            if (firstHighPriorityIndex >= 0) {
+                                const adjustedQueue = [...prev.queue];
+                                adjustedQueue.splice(firstHighPriorityIndex, 1);
+                                console.warn('[Toast] High-priority overflow: drop-oldest applied');
+                                // Continue with the adjusted queue below
+                                // We'll process this by falling through but using adjustedQueue
+                                // Need to recalculate with this new queue
+                                return processHighPriorityToast(prev, toastConfig, adjustedQueue);
+                            }
+                            // If no high-priority in queue but current is high-priority,
+                            // we still need to proceed (current will be re-queued)
+                            break;
+                        }
+
+                        case 'downgrade':
+                            // Convert to normal priority and add to normal queue
+                            console.warn('[Toast] High-priority overflow: downgrade applied');
+                            const downgradedConfig = { ...toastConfig, priority: 'normal' as const };
+                            // Apply normal queue logic
+                            if (prev.queue.length >= maxQueueSize) {
+                                const newQueue = [...prev.queue.slice(1), downgradedConfig];
+                                return { ...prev, queue: newQueue };
+                            }
+                            return { ...prev, queue: [...prev.queue, downgradedConfig] };
+                    }
+                }
+
+                // Helper function to process high-priority toast with given queue
+                function processHighPriorityToast(
+                    prevState: ToastState,
+                    toast: ToastConfig,
+                    baseQueue: ToastConfig[]
+                ): ToastState {
+                    // Calculate remaining duration for current toast
+                    const currentDuration = prevState.current!.duration ?? DEFAULT_DURATION;
+                    const elapsed = toastStartTimeRef.current ? Date.now() - toastStartTimeRef.current : 0;
+                    const remainingDuration = Math.max(1000, currentDuration - elapsed);
+
+                    // Clear current timer
+                    if (dismissTimerRef.current) {
+                        clearTimeout(dismissTimerRef.current);
+                        dismissTimerRef.current = null;
+                    }
+
+                    // Store interrupted toast (only if it was a normal priority toast)
+                    const interruptedToast = prevState.current!.priority !== 'high' ? {
+                        ...prevState.current!,
+                        remainingDuration,
+                    } : null;
+
+                    // If current was high priority, add it back to front of queue
+                    const newQueue = prevState.current!.priority === 'high'
+                        ? [{ ...prevState.current!, duration: remainingDuration }, ...baseQueue]
+                        : baseQueue;
+
+                    // Animate transition
+                    setTimeout(() => {
+                        toastStartTimeRef.current = Date.now();
+                        fadeAnim.setValue(0);
+                        Animated.spring(fadeAnim, {
+                            toValue: 1,
+                            useNativeDriver: Platform.OS !== 'web',
+                            damping: 15,
+                            stiffness: 150,
+                        }).start();
+
+                        if (Platform.OS !== 'web') {
+                            hapticsLight();
+                        }
+
+                        AccessibilityInfo.announceForAccessibility(toast.message);
+
+                        const duration = toast.duration ?? DEFAULT_DURATION;
+                        dismissTimerRef.current = setTimeout(() => {
+                            hideToast(toast.id);
+                        }, duration);
+                    }, 0);
+
+                    return {
+                        current: toast,
+                        queue: newQueue,
+                        interrupted: interruptedToast ?? prevState.interrupted,
+                    };
+                }
+
+                // Normal high-priority processing (no overflow)
                 // Calculate remaining duration for current toast
                 const currentDuration = prev.current.duration ?? DEFAULT_DURATION;
                 const elapsed = toastStartTimeRef.current ? Date.now() - toastStartTimeRef.current : 0;
@@ -331,7 +437,7 @@ export function ToastProvider({ children, queueConfig }: ToastProviderProps) {
         });
 
         return id;
-    }, [generateId, fadeAnim, hideToast, preventDuplicates, maxQueueSize]);
+    }, [generateId, fadeAnim, hideToast, preventDuplicates, maxQueueSize, maxHighPriorityQueueSize, highPriorityOverflow]);
 
     // Register functions with ToastManager
     useEffect(() => {

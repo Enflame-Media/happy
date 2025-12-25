@@ -35,6 +35,15 @@ export interface ToastQueueConfig {
     maxQueueSize?: number;
     /** If true, duplicate messages (same message text) are ignored (default: true) */
     preventDuplicates?: boolean;
+    /** Maximum high-priority toasts allowed before overflow handling (default: 3) */
+    maxHighPriorityQueueSize?: number;
+    /**
+     * Behavior when high-priority queue is full:
+     * - 'drop-oldest': Remove oldest high-priority from queue, add new one
+     * - 'drop-newest': Reject new high-priority toast (default)
+     * - 'downgrade': Convert new high-priority to normal priority
+     */
+    highPriorityOverflow?: 'drop-oldest' | 'drop-newest' | 'downgrade';
 }
 
 export interface ToastState {
