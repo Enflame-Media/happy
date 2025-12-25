@@ -10,6 +10,8 @@ import { StatusDot } from './StatusDot';
 import { ContextMeter } from './ContextMeter';
 import { CompactGitStatus } from './CompactGitStatus';
 import { StyleSheet } from 'react-native-unistyles';
+import { useProjectGitStatus } from '@/sync/storage';
+import { GitStatus } from '@/sync/storageTypes';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { useIsTablet } from '@/utils/responsive';
 import { useSessionContextMenu } from '@/hooks/useSessionContextMenu';
@@ -162,6 +164,38 @@ const stylesheet = StyleSheet.create((theme) => ({
         color: theme.colors.textSecondary,
         ...Typography.default('semiBold'),
     },
+    gitStatusContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.colors.surfaceHighest,
+        paddingHorizontal: 6,
+        height: 18,
+        borderRadius: 4,
+        marginLeft: 6,
+    },
+    gitBranchText: {
+        fontSize: 10,
+        fontWeight: '500',
+        color: theme.colors.textSecondary,
+        marginLeft: 3,
+        maxWidth: 80,
+    },
+    gitLineChanges: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 2,
+        marginLeft: 4,
+    },
+    gitAddedText: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: theme.colors.gitAddedText,
+    },
+    gitRemovedText: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: theme.colors.gitRemovedText,
+    },
 }));
 
 interface ProjectGroupCardProps {
@@ -173,7 +207,7 @@ interface ProjectGroupCardProps {
 }
 
 export function ProjectGroupCard({
-    projectId: _projectId,
+    projectId,
     displayPath,
     machineName,
     sessions,
@@ -183,7 +217,7 @@ export function ProjectGroupCard({
     const [isExpanded, setIsExpanded] = React.useState(false);
     const expandProgress = useSharedValue(0);
     const isTablet = useIsTablet();
-    // Note: _projectId is reserved for future use (navigation, analytics, etc.)
+    const gitStatus = useProjectGitStatus(projectId);
 
     const toggleExpand = React.useCallback(() => {
         const newExpanded = !isExpanded;
@@ -228,6 +262,7 @@ export function ProjectGroupCard({
                                 {sessions.length}
                             </Text>
                         </View>
+                        <ProjectGitStatus gitStatus={gitStatus} />
                     </View>
                     <Text style={styles.headerSubtitle} numberOfLines={1}>
                         {machineName}
@@ -253,6 +288,61 @@ export function ProjectGroupCard({
                 ))}
             </Animated.View>
         </View>
+    );
+}
+
+/**
+ * Displays aggregated git status for a project in the header.
+ * Shows branch name (if available) and line changes.
+ */
+function ProjectGitStatus({ gitStatus }: { gitStatus: GitStatus | null }) {
+    const styles = stylesheet;
+
+    // Don't render if no git status or no meaningful changes
+    if (!gitStatus || !hasMeaningfulProjectChanges(gitStatus)) {
+        return null;
+    }
+
+    const hasLineChanges = gitStatus.unstagedLinesAdded > 0 || gitStatus.unstagedLinesRemoved > 0;
+
+    return (
+        <View style={styles.gitStatusContainer}>
+            <Ionicons
+                name="git-branch-outline"
+                size={11}
+                color={styles.gitBranchText.color}
+            />
+            {gitStatus.branch && (
+                <Text style={styles.gitBranchText} numberOfLines={1}>
+                    {gitStatus.branch}
+                </Text>
+            )}
+            {hasLineChanges && (
+                <View style={styles.gitLineChanges}>
+                    {gitStatus.unstagedLinesAdded > 0 && (
+                        <Text style={styles.gitAddedText}>
+                            +{gitStatus.unstagedLinesAdded}
+                        </Text>
+                    )}
+                    {gitStatus.unstagedLinesRemoved > 0 && (
+                        <Text style={styles.gitRemovedText}>
+                            -{gitStatus.unstagedLinesRemoved}
+                        </Text>
+                    )}
+                </View>
+            )}
+        </View>
+    );
+}
+
+function hasMeaningfulProjectChanges(status: GitStatus): boolean {
+    // Show when there's a branch name OR actual line changes
+    return status.lastUpdatedAt > 0 && (
+        status.branch != null ||
+        (status.isDirty && (
+            status.unstagedLinesAdded > 0 ||
+            status.unstagedLinesRemoved > 0
+        ))
     );
 }
 
