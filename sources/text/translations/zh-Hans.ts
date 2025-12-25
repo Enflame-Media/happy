@@ -242,6 +242,8 @@ export const zhHans: TranslationStructure = {
         sessionDeleted: '会话已被删除',
         sessionDeletedDescription: '此会话已被永久删除',
         notAuthenticated: '未认证',
+        copySupportId: '复制 ID',
+        supportIdCopied: '已复制支持 ID',
 
         // Error functions with context
         fieldError: ({ field, reason }: { field: string; reason: string }) =>

@@ -240,6 +240,8 @@ export const ca: TranslationStructure = {
         sessionDeleted: 'La sessió s\'ha eliminat',
         sessionDeletedDescription: 'Aquesta sessió s\'ha eliminat permanentment',
         notAuthenticated: 'No autenticat',
+        copySupportId: 'Copiar ID',
+        supportIdCopied: 'ID de suport copiat',
 
         // Error functions with context
         fieldError: ({ field, reason }: { field: string; reason: string }) =>

@@ -6,6 +6,9 @@
  * - Falls back to error.message for standard errors
  * - Provides user-friendly messages for unknown errors
  *
+ * HAP-527: For server errors (network, API, sync), the error dialog includes a
+ * "Copy ID" button that copies the Support ID to clipboard for easy reporting.
+ *
  * @module hooks/useErrorHandler
  *
  * @example
@@ -25,9 +28,11 @@
  */
 
 import { useCallback } from 'react';
+import * as Clipboard from 'expo-clipboard';
 import { Modal } from '@/modal';
+import { Toast } from '@/toast';
 import { t } from '@/text';
-import { AppError, getSmartErrorMessage } from '@/utils/errors';
+import { AppError, getSmartErrorMessage, getSupportId, isServerError } from '@/utils/errors';
 
 export interface ErrorHandlerOptions {
     /**
@@ -124,9 +129,30 @@ export function useErrorHandler(): ErrorHandler {
             const title = options?.title ?? t('common.error');
             const message = getErrorMessage(error, options?.fallbackMessage);
 
-            const buttons = options?.buttons ?? [
-                { text: t('common.ok'), style: 'cancel' as const }
-            ];
+            // Build buttons array
+            let buttons = options?.buttons;
+
+            if (!buttons) {
+                // Default buttons: OK only for non-server errors
+                // For server errors with AppError, add "Copy ID" button
+                // HAP-527: Allow users to copy Support ID for easier support reporting
+                if (AppError.isAppError(error) && isServerError(error.code)) {
+                    buttons = [
+                        {
+                            text: t('errors.copySupportId'),
+                            style: 'default' as const,
+                            onPress: async () => {
+                                const supportId = getSupportId();
+                                await Clipboard.setStringAsync(supportId);
+                                Toast.show({ message: t('errors.supportIdCopied') });
+                            }
+                        },
+                        { text: t('common.ok'), style: 'cancel' as const }
+                    ];
+                } else {
+                    buttons = [{ text: t('common.ok'), style: 'cancel' as const }];
+                }
+            }
 
             Modal.alert(title, message, buttons);
         },

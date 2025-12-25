@@ -223,6 +223,8 @@ export const ru: TranslationStructure = {
         sessionDeleted: 'Сессия была удалена',
         sessionDeletedDescription: 'Эта сессия была окончательно удалена',
         notAuthenticated: 'Не аутентифицирован',
+        copySupportId: 'Копировать ID',
+        supportIdCopied: 'ID поддержки скопирован',
 
         // Error functions with context
         fieldError: ({ field, reason }: { field: string; reason: string }) =>

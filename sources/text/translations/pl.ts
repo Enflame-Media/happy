@@ -251,6 +251,8 @@ export const pl: TranslationStructure = {
         sessionDeleted: 'Sesja została usunięta',
         sessionDeletedDescription: 'Ta sesja została trwale usunięta',
         notAuthenticated: 'Nie uwierzytelniono',
+        copySupportId: 'Kopiuj ID',
+        supportIdCopied: 'Skopiowano ID wsparcia',
 
         // Error functions with context
         fieldError: ({ field, reason }: { field: string; reason: string }) =>
