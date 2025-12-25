@@ -6,12 +6,12 @@ import { SimpleSyntaxHighlighter } from '@/components/SimpleSyntaxHighlighter';
 import { Typography } from '@/constants/Typography';
 import { sessionReadFile, sessionBash } from '@/sync/ops';
 import { storage } from '@/sync/storage';
-import { Modal } from '@/modal';
 import { useUnistyles, StyleSheet } from 'react-native-unistyles';
 import { layout } from '@/components/layout';
 import { t } from '@/text';
 import { FileIcon } from '@/components/FileIcon';
 import { AppError, ErrorCodes, getSmartErrorMessage } from '@/utils/errors';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 interface FileContent {
     content: string;
@@ -70,6 +70,7 @@ const DiffDisplay: React.FC<{ diffContent: string }> = ({ diffContent }) => {
 
 function FileScreen() {
     const { theme } = useUnistyles();
+    const { showError } = useErrorHandler();
     const { id: sessionId } = useLocalSearchParams<{ id: string }>();
     const searchParams = useLocalSearchParams();
     const encodedPath = searchParams.path as string;
@@ -280,15 +281,12 @@ function FileScreen() {
     }, [sessionId, filePath, isBinaryFile]);
 
     // Show error modal if there's an error
-    // HAP-539: Use getSmartErrorMessage for AppErrors (includes Support ID for server errors)
+    // HAP-551: Use useErrorHandler for consistent error display with "Copy ID" button
     React.useEffect(() => {
         if (error) {
-            const message = AppError.isAppError(error)
-                ? getSmartErrorMessage(error)
-                : error.message;
-            Modal.alert(t('common.error'), message);
+            showError(error);
         }
-    }, [error]);
+    }, [error, showError]);
 
     // Set default display mode based on diff availability
     React.useEffect(() => {
