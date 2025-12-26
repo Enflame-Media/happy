@@ -51,10 +51,12 @@ import {
     trackSeq as trackSeqUtil,
     getLastKnownSeq as getLastKnownSeqUtil,
 } from './deltaSyncUtils';
+import { orchestrateDeltaSync } from './deltaSyncOrchestrator';
 
 /**
  * HAP-441: Delta sync response type from server.
  * Contains updates since the given seq numbers.
+ * Note: Also exported from deltaSyncOrchestrator.ts for testing.
  */
 interface DeltaSyncResponse {
     success: boolean;
@@ -1938,87 +1940,35 @@ class Sync {
 
     /**
      * HAP-441: Request delta sync on reconnection.
+     * HAP-558: Delegates to orchestrateDeltaSync for testability.
+     *
      * Sends last known seq numbers to server to get only missed updates.
      * Falls back to full invalidation if delta sync fails or times out.
      */
     private requestDeltaSync = async () => {
-        const sessionsSeq = this.getLastKnownSeq('sessions');
-        const machinesSeq = this.getLastKnownSeq('machines');
-        const artifactsSeq = this.getLastKnownSeq('artifacts');
+        await orchestrateDeltaSync({
+            getSeq: (entityType) => this.getLastKnownSeq(entityType),
+            emitWithAck: (event, data, timeoutMs) =>
+                apiSocket.emitWithAck<DeltaSyncResponse>(event, data, timeoutMs),
+            handleUpdate: this.handleUpdate,
+            performFullInvalidation: this.performFullInvalidation,
+            invalidateNonDeltaSyncs: () => {
+                this.friendsSync.invalidate();
+                this.friendRequestsSync.invalidate();
+                this.feedSync.invalidate();
 
-        // Only attempt delta sync if we have any seq data
-        // (if all seqs are 0, this is a fresh connection, do full sync)
-        if (sessionsSeq === 0 && machinesSeq === 0 && artifactsSeq === 0) {
-            log.log('🔌 No previous seq data, performing full sync');
-            this.performFullInvalidation();
-            return;
-        }
-
-        log.log(`🔌 Requesting delta sync since: sessions=${sessionsSeq}, machines=${machinesSeq}, artifacts=${artifactsSeq}`);
-
-        try {
-            // Request delta updates from server with acknowledgement
-            const response = await apiSocket.emitWithAck<DeltaSyncResponse>(
-                'request-updates-since',
-                {
-                    sessions: sessionsSeq,
-                    machines: machinesSeq,
-                    artifacts: artifactsSeq,
-                },
-                10000 // 10 second timeout for delta sync
-            );
-
-            if (!response.success) {
-                log.log('🔌 Delta sync failed, falling back to full sync');
-                this.performFullInvalidation();
-                return;
-            }
-
-            log.log(`🔌 Delta sync received: sessions=${response.counts?.sessions ?? 0}, machines=${response.counts?.machines ?? 0}, artifacts=${response.counts?.artifacts ?? 0}`);
-
-            // Process each update through the normal update handler
-            if (response.updates && response.updates.length > 0) {
-                for (const update of response.updates) {
-                    // Wrap in update container format expected by handleUpdate
-                    await this.handleUpdate({
-                        seq: update.seq,
-                        createdAt: update.createdAt,
-                        body: update.data,
-                    });
-                }
-            }
-
-            // If no updates were found but we had seqs, server returned empty - that's fine
-            // If server returned too many updates, do full sync as fallback
-            if (
-                (response.counts?.sessions ?? 0) >= 100 ||
-                (response.counts?.machines ?? 0) >= 50 ||
-                (response.counts?.artifacts ?? 0) >= 100
-            ) {
-                log.log('🔌 Delta sync hit limits, performing full sync for completeness');
-                this.performFullInvalidation();
-                return;
-            }
-
-            // Delta sync successful, invalidate non-delta syncs
-            log.log('🔌 Delta sync complete, invalidating non-delta syncs');
-            this.friendsSync.invalidate();
-            this.friendRequestsSync.invalidate();
-            this.feedSync.invalidate();
-
-            // Invalidate git status for all sessions on reconnection
-            const sessionsData = storage.getState().sessionsData;
-            if (sessionsData) {
-                for (const item of sessionsData) {
-                    if (typeof item !== 'string') {
-                        gitStatusSync.invalidate(item.id);
+                // Invalidate git status for all sessions on reconnection
+                const sessionsData = storage.getState().sessionsData;
+                if (sessionsData) {
+                    for (const item of sessionsData) {
+                        if (typeof item !== 'string') {
+                            gitStatusSync.invalidate(item.id);
+                        }
                     }
                 }
-            }
-        } catch (error) {
-            log.log('🔌 Delta sync request failed, falling back to full sync: ' + String(error));
-            this.performFullInvalidation();
-        }
+            },
+            log: (msg) => log.log(msg),
+        });
     }
 
     /**
