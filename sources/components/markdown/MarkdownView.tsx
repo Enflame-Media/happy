@@ -225,9 +225,6 @@ function RenderSpans(props: { spans: MarkdownSpan[], baseStyle?: any }) {
     </>)
 }
 
-// TODO: Table rendering has layout issues on mobile - cells don't resize together when content varies.
-// See https://github.com/slopus/happy/issues/294 for details and potential fixes.
-// To repro: Navigate to dev/messages-demo and observe tables with long cell content.
 function RenderTableBlock(props: {
     headers: string[],
     rows: string[][],
@@ -236,6 +233,7 @@ function RenderTableBlock(props: {
 }) {
     const columnCount = props.headers.length;
     // Calculate cell width: minimum 100px per cell, but expand to fill if fewer columns
+    // Use flex: 1 for equal distribution within the scrollable content
     const cellMinWidth = Math.max(100, Math.floor(300 / columnCount));
     const isLastRow = (rowIndex: number) => rowIndex === props.rows.length - 1;
 
@@ -243,7 +241,7 @@ function RenderTableBlock(props: {
         <View style={[style.tableContainer, props.first && style.first, props.last && style.last]}>
             <ScrollView
                 horizontal
-                showsHorizontalScrollIndicator={Platform.OS !== 'web'}
+                showsHorizontalScrollIndicator={true}
                 nestedScrollEnabled={true}
                 style={style.tableScrollView}
             >
@@ -251,7 +249,7 @@ function RenderTableBlock(props: {
                     {/* Header row */}
                     <View style={style.tableRow}>
                         {props.headers.map((header, index) => (
-                            <View key={`header-${index}`} style={[style.tableCell, style.tableHeaderCell, { minWidth: cellMinWidth }]}>
+                            <View key={`header-${index}`} style={[style.tableCell, style.tableHeaderCell, { minWidth: cellMinWidth, flex: 1 }]}>
                                 <Text style={style.tableHeaderText}>{header}</Text>
                             </View>
                         ))}
@@ -260,7 +258,7 @@ function RenderTableBlock(props: {
                     {props.rows.map((row, rowIndex) => (
                         <View key={`row-${rowIndex}`} style={[style.tableRow, isLastRow(rowIndex) && style.tableRowLast]}>
                             {props.headers.map((_, cellIndex) => (
-                                <View key={`cell-${rowIndex}-${cellIndex}`} style={[style.tableCell, { minWidth: cellMinWidth }]}>
+                                <View key={`cell-${rowIndex}-${cellIndex}`} style={[style.tableCell, { minWidth: cellMinWidth, flex: 1 }]}>
                                     <Text style={style.tableCellText}>{row[cellIndex] ?? ''}</Text>
                                 </View>
                             ))}
@@ -512,6 +510,7 @@ const style = StyleSheet.create((theme) => ({
     tableCell: {
         paddingHorizontal: 12,
         paddingVertical: 8,
+        flexShrink: 1,
     },
     tableHeaderCell: {
         backgroundColor: theme.colors.surfaceHigh,
@@ -521,12 +520,16 @@ const style = StyleSheet.create((theme) => ({
         color: theme.colors.text,
         fontSize: 16,
         lineHeight: 24,
+        flexWrap: 'wrap',
+        flexShrink: 1,
     },
     tableCellText: {
         ...Typography.default(),
         color: theme.colors.text,
         fontSize: 16,
         lineHeight: 24,
+        flexWrap: 'wrap',
+        flexShrink: 1,
     },
 
     // Add global style for Web platform (Unistyles supports this via compiler plugin)
