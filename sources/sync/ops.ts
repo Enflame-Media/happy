@@ -547,22 +547,134 @@ export async function sessionRipgrep(
 }
 
 /**
- * Kill the session process immediately
+ * Helper to wait for a session to go offline.
+ * Resolves when session presence changes from "online" to a timestamp.
+ * Used by sessionKill to detect when CLI disconnects after killing Claude Code.
+ *
+ * @param sessionId - The session ID to monitor
+ * @param timeoutMs - Maximum time to wait before rejecting
+ * @returns Promise that resolves when session goes offline
+ */
+function waitForSessionOffline(sessionId: string, timeoutMs: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const session = storage.getState().sessions[sessionId];
+
+        // Already offline - resolve immediately
+        if (!session || session.presence !== "online") {
+            resolve();
+            return;
+        }
+
+        let unsubscribe: (() => void) | null = null;
+        let timer: ReturnType<typeof setTimeout> | null = null;
+
+        const cleanup = () => {
+            if (timer) clearTimeout(timer);
+            if (unsubscribe) unsubscribe();
+        };
+
+        // Set up timeout
+        timer = setTimeout(() => {
+            cleanup();
+            reject(new Error('Timeout waiting for session offline'));
+        }, timeoutMs);
+
+        // Subscribe to state changes
+        unsubscribe = storage.subscribe((state) => {
+            const currentSession = state.sessions[sessionId];
+            if (!currentSession || currentSession.presence !== "online") {
+                cleanup();
+                resolve();
+            }
+        });
+    });
+}
+
+// Result types for the race between RPC and offline detection
+type RaceResult =
+    | { type: 'offline' }
+    | { type: 'offline-timeout' }
+    | { type: 'rpc'; response: SessionKillResponse }
+    | { type: 'rpc-error'; error: unknown };
+
+/**
+ * Kill the session process immediately.
+ *
+ * Uses a race condition pattern to handle the case where CLI disconnects
+ * before sending an RPC acknowledgement (HAP-575). This happens because:
+ * 1. killSession RPC is sent to CLI
+ * 2. CLI terminates Claude Code process
+ * 3. CLI disconnects from WebSocket (session goes offline)
+ * 4. RPC ack is never sent because connection is severed
+ *
+ * Solution: Race the RPC response against session state change.
+ * If session goes offline during the RPC call, treat as success.
  */
 export async function sessionKill(sessionId: string): Promise<SessionKillResponse> {
-    try {
-        const response = await apiSocket.sessionRPC<SessionKillResponse, {}>(
-            sessionId,
-            'killSession',
-            {}
-        );
-        return response;
-    } catch (error) {
+    // Check if already offline - nothing to kill
+    const session = storage.getState().sessions[sessionId];
+    if (!session || session.presence !== "online") {
+        return { success: true, message: 'Session already offline' };
+    }
+
+    // Race the RPC call against session going offline
+    // Use 15 second timeout for offline detection (less than 30s RPC timeout)
+    const offlinePromise: Promise<RaceResult> = waitForSessionOffline(sessionId, 15000)
+        .then(() => ({ type: 'offline' as const }))
+        .catch(() => ({ type: 'offline-timeout' as const }));
+
+    const rpcPromise: Promise<RaceResult> = apiSocket.sessionRPC<SessionKillResponse, {}>(
+        sessionId,
+        'killSession',
+        {}
+    )
+        .then((response) => ({ type: 'rpc' as const, response }))
+        .catch((error) => ({ type: 'rpc-error' as const, error }));
+
+    const result = await Promise.race([offlinePromise, rpcPromise]);
+
+    if (result.type === 'offline') {
+        // Session went offline - CLI disconnected after killing, treat as success
+        return { success: true, message: 'Session terminated' };
+    }
+
+    if (result.type === 'rpc') {
+        // RPC responded (unlikely for killSession, but handle it)
+        return result.response;
+    }
+
+    if (result.type === 'rpc-error') {
+        // RPC failed - check if session went offline during the error
+        const currentSession = storage.getState().sessions[sessionId];
+        if (!currentSession || currentSession.presence !== "online") {
+            // Session went offline, so kill succeeded despite RPC timeout
+            return { success: true, message: 'Session terminated' };
+        }
+        // Genuine error - session still online
         return {
             success: false,
-            message: error instanceof Error ? error.message : 'Unknown error'
+            message: result.error instanceof Error ? result.error.message : 'Unknown error'
         };
     }
+
+    // Offline timeout occurred - wait for RPC to complete
+    const rpcResult = await rpcPromise;
+    if (rpcResult.type === 'rpc') {
+        return rpcResult.response;
+    }
+
+    // Check one more time if session went offline
+    const finalSession = storage.getState().sessions[sessionId];
+    if (!finalSession || finalSession.presence !== "online") {
+        return { success: true, message: 'Session terminated' };
+    }
+
+    return {
+        success: false,
+        message: rpcResult.type === 'rpc-error' && rpcResult.error instanceof Error
+            ? rpcResult.error.message
+            : 'Unknown error'
+    };
 }
 
 /**
