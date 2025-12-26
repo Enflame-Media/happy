@@ -45,6 +45,11 @@ import { UserProfile } from './friendTypes';
 import { parseCursorCounterOrDefault, isValidCursor } from './cursorUtils';
 import { initializeTodoSync } from '../-zen/model/ops';
 import { createAdvancedDebounce } from '@/utils/debounce';
+import {
+    getEntityTypeFromUpdate as getEntityTypeFromUpdateUtil,
+    trackSeq as trackSeqUtil,
+    getLastKnownSeq as getLastKnownSeqUtil,
+} from './deltaSyncUtils';
 
 /**
  * HAP-441: Delta sync response type from server.
@@ -2047,45 +2052,31 @@ class Sync {
     /**
      * HAP-441: Map update types to entity types for seq tracking.
      * Returns the entity type (sessions, machines, artifacts) or null if not trackable.
+     * HAP-486: Delegates to extracted utility for testability.
      */
     private getEntityTypeFromUpdate(updateType: string): string | null {
-        switch (updateType) {
-            case 'new-session':
-            case 'update-session':
-            case 'delete-session':
-            case 'new-message':
-                return 'sessions';
-            case 'new-machine':
-            case 'update-machine':
-                return 'machines';
-            case 'new-artifact':
-            case 'update-artifact':
-            case 'delete-artifact':
-                return 'artifacts';
-            default:
-                return null;
-        }
+        return getEntityTypeFromUpdateUtil(updateType);
     }
 
     /**
      * HAP-441: Track the last known sequence number for an entity type.
      * Called whenever we receive an update to ensure we know the latest seq.
      * HAP-496: Schedules sync state persistence when seq changes.
+     * HAP-486: Delegates to extracted utility for testability.
      */
     private trackSeq(entityType: string, seq: number | undefined) {
-        if (seq === undefined) return;
-        const currentSeq = this.lastKnownSeq.get(entityType) ?? 0;
-        if (seq > currentSeq) {
-            this.lastKnownSeq.set(entityType, seq);
+        const updated = trackSeqUtil(this.lastKnownSeq, entityType, seq);
+        if (updated) {
             this.scheduleSyncStatePersist(); // HAP-496
         }
     }
 
     /**
      * HAP-441: Get last known seq for an entity type, defaulting to 0.
+     * HAP-486: Delegates to extracted utility for testability.
      */
     private getLastKnownSeq(entityType: string): number {
-        return this.lastKnownSeq.get(entityType) ?? 0;
+        return getLastKnownSeqUtil(this.lastKnownSeq, entityType);
     }
 
     /**
