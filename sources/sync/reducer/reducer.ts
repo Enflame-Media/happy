@@ -71,7 +71,7 @@
  *   - Handles mode changes and other events
  * 
  * ## Key Behaviors:
- * 
+ *
  * - **Idempotency**: Calling the reducer multiple times with the same data produces no duplicates
  * - **Priority Rules**: When both tool calls and permissions exist, tool calls take priority
  * - **Argument Matching**: Tool calls match to permissions based on both name AND arguments
@@ -82,6 +82,20 @@
  * - **Timestamp Preservation**: NEVER change a message's createdAt timestamp. The timestamp
  *   represents when the message was originally created and must be preserved throughout all
  *   processing phases. This is critical for maintaining correct message ordering.
+ *
+ * ## Immutability Contract (HAP-445):
+ *
+ * This reducer uses **Immer** for safe, immutable message updates. All message mutations
+ * go through Immer's `produce()` function, which:
+ *
+ * - Creates new object references when properties change (structural sharing)
+ * - Enables React's change detection to work correctly
+ * - Makes debugging with React DevTools reliable
+ * - Prevents accidental mutations from affecting cached state
+ *
+ * **Internal state tracking** (LRUCache maps for toolIdToMessageId, permissions, etc.)
+ * is mutated directly since these are internal indexes not consumed by React components.
+ * Only the `ReducerMessage` objects that become `Message` objects for the UI use Immer.
  * 
  * ## Permission Matching Algorithm:
  * 
@@ -110,6 +124,7 @@
  * - Updated internal state for future processing
  */
 
+import { produce } from "immer";
 import { Message, ToolCall } from "../typesMessage";
 import { AgentEvent, NormalizedMessage, UsageData } from "../typesRaw";
 import { createTracer, traceMessages, TracerState } from "./reducerTracer";
@@ -379,10 +394,14 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         if (ENABLE_LOGGING) {
                             console.log(`[REDUCER] Updating existing tool ${permId} with permission`);
                         }
-                        message.tool.permission = {
-                            id: permId,
-                            status: 'pending'
-                        };
+                        // HAP-445: Use Immer for immutable message updates
+                        const updated = produce(message, draft => {
+                            draft.tool!.permission = {
+                                id: permId,
+                                status: 'pending'
+                            };
+                        });
+                        state.messages.set(existingMessageId, updated);
                         changed.add(existingMessageId);
                     }
                 } else {
@@ -463,48 +482,47 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             continue;
                         }
 
-                        let hasChanged = false;
-
-                        // Update permission status
-                        if (!message.tool.permission) {
-                            message.tool.permission = {
-                                id: permId,
-                                status: completed.status,
-                                mode: completed.mode || undefined,
-                                allowedTools: completed.allowedTools || undefined,
-                                decision: completed.decision || undefined,
-                                reason: completed.reason || undefined
-                            };
-                            hasChanged = true;
-                        } else {
-                            // Update all fields
-                            message.tool.permission.status = completed.status;
-                            message.tool.permission.mode = completed.mode || undefined;
-                            message.tool.permission.allowedTools = completed.allowedTools || undefined;
-                            message.tool.permission.decision = completed.decision || undefined;
-                            if (completed.reason) {
-                                message.tool.permission.reason = completed.reason;
-                            }
-                            hasChanged = true;
-                        }
-
-                        // Update tool state based on permission status
-                        if (completed.status === 'approved') {
-                            if (message.tool.state !== 'completed' && message.tool.state !== 'error' && message.tool.state !== 'running') {
-                                message.tool.state = 'running';
-                                hasChanged = true;
-                            }
-                        } else {
-                            // denied or canceled
-                            if (message.tool.state !== 'error' && message.tool.state !== 'completed') {
-                                message.tool.state = 'error';
-                                message.tool.completedAt = completed.completedAt || Date.now();
-                                if (!message.tool.result && completed.reason) {
-                                    message.tool.result = { error: completed.reason };
+                        // HAP-445: Use Immer for immutable message updates
+                        const updated = produce(message, draft => {
+                            // Update permission status
+                            if (!draft.tool!.permission) {
+                                draft.tool!.permission = {
+                                    id: permId,
+                                    status: completed.status,
+                                    mode: completed.mode || undefined,
+                                    allowedTools: completed.allowedTools || undefined,
+                                    decision: completed.decision || undefined,
+                                    reason: completed.reason || undefined
+                                };
+                            } else {
+                                // Update all fields
+                                draft.tool!.permission.status = completed.status;
+                                draft.tool!.permission.mode = completed.mode || undefined;
+                                draft.tool!.permission.allowedTools = completed.allowedTools || undefined;
+                                draft.tool!.permission.decision = completed.decision || undefined;
+                                if (completed.reason) {
+                                    draft.tool!.permission.reason = completed.reason;
                                 }
-                                hasChanged = true;
                             }
-                        }
+
+                            // Update tool state based on permission status
+                            if (completed.status === 'approved') {
+                                if (draft.tool!.state !== 'completed' && draft.tool!.state !== 'error' && draft.tool!.state !== 'running') {
+                                    draft.tool!.state = 'running';
+                                }
+                            } else {
+                                // denied or canceled
+                                if (draft.tool!.state !== 'error' && draft.tool!.state !== 'completed') {
+                                    draft.tool!.state = 'error';
+                                    draft.tool!.completedAt = completed.completedAt || Date.now();
+                                    if (!draft.tool!.result && completed.reason) {
+                                        draft.tool!.result = { error: completed.reason };
+                                    }
+                                }
+                            }
+                        });
+                        state.messages.set(messageId, updated);
+                        changed.add(messageId);
 
                         // Update stored permission
                         state.permissions.set(permId, {
@@ -518,10 +536,6 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             allowedTools: completed.allowedTools || undefined,
                             decision: completed.decision || undefined
                         });
-
-                        if (hasChanged) {
-                            changed.add(messageId);
-                        }
                     }
                 } else {
                     // No existing message - check if tool ID is in incoming messages
@@ -691,24 +705,28 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         // Update existing message with tool execution details
                         const message = state.messages.get(existingMessageId);
                         if (message?.tool) {
-                            message.realID = msg.id;
-                            message.tool.description = c.description;
-                            message.tool.startedAt = msg.createdAt;
-                            // If permission was approved and shown as completed (no tool), now it's running
-                            if (message.tool.permission?.status === 'approved' && message.tool.state === 'completed') {
-                                message.tool.state = 'running';
-                                message.tool.completedAt = null;
-                                message.tool.result = undefined;
-                            }
+                            // HAP-445: Use Immer for immutable message updates
+                            const updated = produce(message, draft => {
+                                draft.realID = msg.id;
+                                draft.tool!.description = c.description;
+                                draft.tool!.startedAt = msg.createdAt;
+                                // If permission was approved and shown as completed (no tool), now it's running
+                                if (draft.tool!.permission?.status === 'approved' && draft.tool!.state === 'completed') {
+                                    draft.tool!.state = 'running';
+                                    draft.tool!.completedAt = null;
+                                    draft.tool!.result = undefined;
+                                }
+                            });
+                            state.messages.set(existingMessageId, updated);
                             changed.add(existingMessageId);
 
                             // Track TodoWrite tool inputs when updating existing messages
-                            if (message.tool.name === 'TodoWrite' && message.tool.state === 'running' && message.tool.input?.todos) {
+                            if (updated.tool!.name === 'TodoWrite' && updated.tool!.state === 'running' && updated.tool!.input?.todos) {
                                 // Only update if this is newer than existing todos
-                                if (!state.latestTodos || message.tool.createdAt > state.latestTodos.timestamp) {
+                                if (!state.latestTodos || updated.tool!.createdAt > state.latestTodos.timestamp) {
                                     state.latestTodos = {
-                                        todos: message.tool.input.todos,
-                                        timestamp: message.tool.createdAt
+                                        todos: updated.tool!.input.todos,
+                                        timestamp: updated.tool!.createdAt
                                     };
                                 }
                             }
@@ -801,7 +819,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         continue;
                     }
 
-                    let message = state.messages.get(messageId);
+                    const message = state.messages.get(messageId);
                     if (!message || !message.tool) {
                         continue;
                     }
@@ -810,38 +828,41 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         continue;
                     }
 
-                    // Update tool state and result
-                    message.tool.state = c.is_error ? 'error' : 'completed';
-                    message.tool.result = c.content;
-                    message.tool.completedAt = msg.createdAt;
+                    // HAP-445: Use Immer for immutable message updates
+                    const updated = produce(message, draft => {
+                        // Update tool state and result
+                        draft.tool!.state = c.is_error ? 'error' : 'completed';
+                        draft.tool!.result = c.content;
+                        draft.tool!.completedAt = msg.createdAt;
 
-                    // Update permission data if provided by backend
-                    if (c.permissions) {
-                        // Merge with existing permission to preserve decision field from agentState
-                        if (message.tool.permission) {
-                            // Preserve existing decision if not provided in tool result
-                            const existingDecision = message.tool.permission.decision;
-                            message.tool.permission = {
-                                ...message.tool.permission,
-                                id: c.tool_use_id,
-                                status: c.permissions.result === 'approved' ? 'approved' : 'denied',
-                                date: c.permissions.date,
-                                mode: c.permissions.mode,
-                                allowedTools: c.permissions.allowedTools,
-                                decision: c.permissions.decision || existingDecision
-                            };
-                        } else {
-                            message.tool.permission = {
-                                id: c.tool_use_id,
-                                status: c.permissions.result === 'approved' ? 'approved' : 'denied',
-                                date: c.permissions.date,
-                                mode: c.permissions.mode,
-                                allowedTools: c.permissions.allowedTools,
-                                decision: c.permissions.decision
-                            };
+                        // Update permission data if provided by backend
+                        if (c.permissions) {
+                            // Merge with existing permission to preserve decision field from agentState
+                            if (draft.tool!.permission) {
+                                // Preserve existing decision if not provided in tool result
+                                const existingDecision = draft.tool!.permission.decision;
+                                draft.tool!.permission = {
+                                    ...draft.tool!.permission,
+                                    id: c.tool_use_id,
+                                    status: c.permissions.result === 'approved' ? 'approved' : 'denied',
+                                    date: c.permissions.date,
+                                    mode: c.permissions.mode,
+                                    allowedTools: c.permissions.allowedTools,
+                                    decision: c.permissions.decision || existingDecision
+                                };
+                            } else {
+                                draft.tool!.permission = {
+                                    id: c.tool_use_id,
+                                    status: c.permissions.result === 'approved' ? 'approved' : 'denied',
+                                    date: c.permissions.date,
+                                    mode: c.permissions.mode,
+                                    allowedTools: c.permissions.allowedTools,
+                                    decision: c.permissions.decision
+                                };
+                            }
                         }
-                    }
-
+                    });
+                    state.messages.set(messageId, updated);
                     changed.add(messageId);
                 }
             }
@@ -922,9 +943,13 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             toolCall.permission = { ...permissionMessage.tool.permission };
                             // Update the permission message to show it's running
                             if (permissionMessage.tool.state !== 'completed' && permissionMessage.tool.state !== 'error') {
-                                permissionMessage.tool.state = 'running';
-                                permissionMessage.tool.startedAt = msg.createdAt;
-                                permissionMessage.tool.description = c.description;
+                                // HAP-445: Use Immer for immutable message updates
+                                const updatedPermission = produce(permissionMessage, draft => {
+                                    draft.tool!.state = 'running';
+                                    draft.tool!.startedAt = msg.createdAt;
+                                    draft.tool!.description = c.description;
+                                });
+                                state.messages.set(existingPermissionMessageId, updatedPermission);
                                 changed.add(existingPermissionMessageId);
                             }
                         }
@@ -950,77 +975,84 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     // Process tool result in sidechain - update BOTH messages
 
                     // Update the sidechain tool message
-                    let sidechainMessageId = state.sidechainToolIdToMessageId.get(c.tool_use_id);
+                    const sidechainMessageId = state.sidechainToolIdToMessageId.get(c.tool_use_id);
                     if (sidechainMessageId) {
-                        let sidechainMessage = state.messages.get(sidechainMessageId);
+                        const sidechainMessage = state.messages.get(sidechainMessageId);
                         if (sidechainMessage && sidechainMessage.tool && sidechainMessage.tool.state === 'running') {
-                            sidechainMessage.tool.state = c.is_error ? 'error' : 'completed';
-                            sidechainMessage.tool.result = c.content;
-                            sidechainMessage.tool.completedAt = msg.createdAt;
-                            
-                            // Update permission data if provided by backend
-                            if (c.permissions) {
-                                // Merge with existing permission to preserve decision field from agentState
-                                if (sidechainMessage.tool.permission) {
-                                    const existingDecision = sidechainMessage.tool.permission.decision;
-                                    sidechainMessage.tool.permission = {
-                                        ...sidechainMessage.tool.permission,
-                                        id: c.tool_use_id,
-                                        status: c.permissions.result === 'approved' ? 'approved' : 'denied',
-                                        date: c.permissions.date,
-                                        mode: c.permissions.mode,
-                                        allowedTools: c.permissions.allowedTools,
-                                        decision: c.permissions.decision || existingDecision
-                                    };
-                                } else {
-                                    sidechainMessage.tool.permission = {
-                                        id: c.tool_use_id,
-                                        status: c.permissions.result === 'approved' ? 'approved' : 'denied',
-                                        date: c.permissions.date,
-                                        mode: c.permissions.mode,
-                                        allowedTools: c.permissions.allowedTools,
-                                        decision: c.permissions.decision
-                                    };
+                            // HAP-445: Use Immer for immutable message updates
+                            const updatedSidechain = produce(sidechainMessage, draft => {
+                                draft.tool!.state = c.is_error ? 'error' : 'completed';
+                                draft.tool!.result = c.content;
+                                draft.tool!.completedAt = msg.createdAt;
+
+                                // Update permission data if provided by backend
+                                if (c.permissions) {
+                                    // Merge with existing permission to preserve decision field from agentState
+                                    if (draft.tool!.permission) {
+                                        const existingDecision = draft.tool!.permission.decision;
+                                        draft.tool!.permission = {
+                                            ...draft.tool!.permission,
+                                            id: c.tool_use_id,
+                                            status: c.permissions.result === 'approved' ? 'approved' : 'denied',
+                                            date: c.permissions.date,
+                                            mode: c.permissions.mode,
+                                            allowedTools: c.permissions.allowedTools,
+                                            decision: c.permissions.decision || existingDecision
+                                        };
+                                    } else {
+                                        draft.tool!.permission = {
+                                            id: c.tool_use_id,
+                                            status: c.permissions.result === 'approved' ? 'approved' : 'denied',
+                                            date: c.permissions.date,
+                                            mode: c.permissions.mode,
+                                            allowedTools: c.permissions.allowedTools,
+                                            decision: c.permissions.decision
+                                        };
+                                    }
                                 }
-                            }
+                            });
+                            state.messages.set(sidechainMessageId, updatedSidechain);
                         }
                     }
 
                     // Also update the main permission message if it exists
-                    let permissionMessageId = state.toolIdToMessageId.get(c.tool_use_id);
+                    const permissionMessageId = state.toolIdToMessageId.get(c.tool_use_id);
                     if (permissionMessageId) {
-                        let permissionMessage = state.messages.get(permissionMessageId);
+                        const permissionMessage = state.messages.get(permissionMessageId);
                         if (permissionMessage && permissionMessage.tool && permissionMessage.tool.state === 'running') {
-                            permissionMessage.tool.state = c.is_error ? 'error' : 'completed';
-                            permissionMessage.tool.result = c.content;
-                            permissionMessage.tool.completedAt = msg.createdAt;
-                            
-                            // Update permission data if provided by backend
-                            if (c.permissions) {
-                                // Merge with existing permission to preserve decision field from agentState
-                                if (permissionMessage.tool.permission) {
-                                    const existingDecision = permissionMessage.tool.permission.decision;
-                                    permissionMessage.tool.permission = {
-                                        ...permissionMessage.tool.permission,
-                                        id: c.tool_use_id,
-                                        status: c.permissions.result === 'approved' ? 'approved' : 'denied',
-                                        date: c.permissions.date,
-                                        mode: c.permissions.mode,
-                                        allowedTools: c.permissions.allowedTools,
-                                        decision: c.permissions.decision || existingDecision
-                                    };
-                                } else {
-                                    permissionMessage.tool.permission = {
-                                        id: c.tool_use_id,
-                                        status: c.permissions.result === 'approved' ? 'approved' : 'denied',
-                                        date: c.permissions.date,
-                                        mode: c.permissions.mode,
-                                        allowedTools: c.permissions.allowedTools,
-                                        decision: c.permissions.decision
-                                    };
+                            // HAP-445: Use Immer for immutable message updates
+                            const updatedPermission = produce(permissionMessage, draft => {
+                                draft.tool!.state = c.is_error ? 'error' : 'completed';
+                                draft.tool!.result = c.content;
+                                draft.tool!.completedAt = msg.createdAt;
+
+                                // Update permission data if provided by backend
+                                if (c.permissions) {
+                                    // Merge with existing permission to preserve decision field from agentState
+                                    if (draft.tool!.permission) {
+                                        const existingDecision = draft.tool!.permission.decision;
+                                        draft.tool!.permission = {
+                                            ...draft.tool!.permission,
+                                            id: c.tool_use_id,
+                                            status: c.permissions.result === 'approved' ? 'approved' : 'denied',
+                                            date: c.permissions.date,
+                                            mode: c.permissions.mode,
+                                            allowedTools: c.permissions.allowedTools,
+                                            decision: c.permissions.decision || existingDecision
+                                        };
+                                    } else {
+                                        draft.tool!.permission = {
+                                            id: c.tool_use_id,
+                                            status: c.permissions.result === 'approved' ? 'approved' : 'denied',
+                                            date: c.permissions.date,
+                                            mode: c.permissions.mode,
+                                            allowedTools: c.permissions.allowedTools,
+                                            decision: c.permissions.decision
+                                        };
+                                    }
                                 }
-                            }
-                            
+                            });
+                            state.messages.set(permissionMessageId, updatedPermission);
                             changed.add(permissionMessageId);
                         }
                     }
