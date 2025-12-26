@@ -245,7 +245,13 @@ export function ProjectGroupCard({
 
     return (
         <View style={styles.container}>
-            <Pressable style={styles.header} onPress={toggleExpand}>
+            <Pressable
+                style={styles.header}
+                onPress={toggleExpand}
+                accessibilityRole="button"
+                accessibilityLabel={`${displayPath}, ${sessions.length} sessions, ${machineName}`}
+                accessibilityState={{ expanded: isExpanded }}
+            >
                 <Ionicons
                     name="folder-outline"
                     size={20}
@@ -389,6 +395,9 @@ const ProjectSessionRow = React.memo(({ session, selected, isTablet: _isTablet }
                 onPress={handlePress}
                 onLongPress={handleLongPress}
                 delayLongPress={500}
+                accessibilityRole="button"
+                accessibilityLabel={`${sessionName}, ${sessionStatus.statusText}`}
+                accessibilityState={{ selected }}
             >
                 <View style={styles.avatarContainer}>
                     <View style={[styles.projectColorIndicator, { backgroundColor: projectColor }]} />

@@ -54,9 +54,11 @@ export const RecentPathsDropdown = React.memo<RecentPathsDropdownProps>(({
             <Pressable
                 style={styles.backdrop}
                 onPress={onClose}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.cancel')}
             >
-                <View style={styles.dropdownContainer}>
-                    <Pressable onPress={(e) => e.stopPropagation()}>
+                <View style={styles.dropdownContainer} accessibilityRole="menu">
+                    <Pressable onPress={(e) => e.stopPropagation()} accessible={false}>
                         <FloatingOverlay maxHeight={300}>
                             {recentPaths.length > 0 && (
                                 <>

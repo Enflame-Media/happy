@@ -240,6 +240,8 @@ function HeaderRight({ isSelectMode, hasEligibleSessions, onEnterSelectMode, onE
                 onPress={onExitSelectMode}
                 hitSlop={15}
                 style={styles.headerButton}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.cancel')}
             >
                 <Text style={styles.cancelText}>{t('common.cancel')}</Text>
             </Pressable>
@@ -254,6 +256,8 @@ function HeaderRight({ isSelectMode, hasEligibleSessions, onEnterSelectMode, onE
                     onPress={onEnterSelectMode}
                     hitSlop={15}
                     style={styles.headerButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('bulkRestore.select')}
                 >
                     <Text style={styles.selectText}>{t('bulkRestore.select')}</Text>
                 </Pressable>
@@ -263,6 +267,8 @@ function HeaderRight({ isSelectMode, hasEligibleSessions, onEnterSelectMode, onE
                 onPress={() => router.push('/new')}
                 hitSlop={15}
                 style={styles.headerButton}
+                accessibilityRole="button"
+                accessibilityLabel={t('newSession.title')}
             >
                 <Ionicons name="add-outline" size={28} color={theme.colors.header.tint} />
             </Pressable>

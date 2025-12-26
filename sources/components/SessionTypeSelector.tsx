@@ -86,7 +86,7 @@ export const SessionTypeSelector: React.FC<SessionTypeSelectorProps> = ({ value,
     };
 
     return (
-        <View style={styles.container}>
+        <View style={styles.container} accessibilityRole="radiogroup" accessibilityLabel={t('newSession.sessionType.title')}>
             <Text style={styles.title}>{t('newSession.sessionType.title')}</Text>
             
             <Pressable
@@ -95,6 +95,9 @@ export const SessionTypeSelector: React.FC<SessionTypeSelectorProps> = ({ value,
                     styles.optionContainer,
                     pressed && styles.optionPressed,
                 ]}
+                accessibilityRole="radio"
+                accessibilityLabel={t('newSession.sessionType.simple')}
+                accessibilityState={{ checked: value === 'simple' }}
             >
                 <View style={[
                     styles.radioButton,
@@ -120,6 +123,9 @@ export const SessionTypeSelector: React.FC<SessionTypeSelectorProps> = ({ value,
                     styles.optionContainer,
                     pressed && styles.optionPressed,
                 ]}
+                accessibilityRole="radio"
+                accessibilityLabel={t('newSession.sessionType.worktree')}
+                accessibilityState={{ checked: value === 'worktree' }}
             >
                 <View style={[
                     styles.radioButton,

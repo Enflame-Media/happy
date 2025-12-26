@@ -105,6 +105,9 @@ export const PermissionModeSelector: React.FC<PermissionModeSelectorProps> = ({
             onPress={handleTap}
             disabled={disabled}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={`${t('agentInput.permissionMode.title')}: ${getModeLabel()}`}
+            accessibilityState={{ disabled }}
             style={({ pressed }) => ({
                 flexDirection: 'row',
                 alignItems: 'center',

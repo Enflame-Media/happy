@@ -97,6 +97,9 @@ const SessionTab = React.memo(({
             ]}
             onPress={onPress}
             hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            accessibilityRole="tab"
+            accessibilityLabel={`${sessionName}, ${sessionStatus.statusText}`}
+            accessibilityState={{ selected: isActive }}
         >
             <View style={styles.statusDot}>
                 <StatusDot
