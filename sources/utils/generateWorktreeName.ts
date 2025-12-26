@@ -2,6 +2,8 @@
  * Generate GitHub-style adjective-noun combinations for worktree names
  */
 
+import { randomInt } from 'node:crypto';
+
 const adjectives = [
     'clever', 'happy', 'swift', 'bright', 'calm',
     'bold', 'quiet', 'brave', 'wise', 'eager',
@@ -15,7 +17,8 @@ const nouns = [
 ];
 
 function randomChoice<T>(array: T[]): T {
-    return array[Math.floor(Math.random() * array.length)];
+    // Use cryptographically secure randomness to choose an index
+    return array[randomInt(array.length)];
 }
 
 export function generateWorktreeName(): string {
