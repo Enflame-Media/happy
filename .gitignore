@@ -49,6 +49,11 @@ yarn-error.*
 # test coverage
 coverage/
 
+# bundle analysis artifacts
+bundle-report.json
+bundle-report.md
+bundle-stats.json
+
 .claude/settings.local.json
 .plan
 

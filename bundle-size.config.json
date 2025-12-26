@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Bundle size tracking configuration for Happy App (HAP-555)",
+  "thresholds": {
+    "warning": 5,
+    "error": 10,
+    "comment": "Percentage increase that triggers alerts"
+  },
+  "budgets": {
+    "jsBundle": {
+      "max": "5MB",
+      "warning": "4MB",
+      "comment": "Maximum JS bundle size (main + chunks)"
+    },
+    "assets": {
+      "max": "10MB",
+      "warning": "8MB",
+      "comment": "Maximum total assets size"
+    },
+    "total": {
+      "max": "15MB",
+      "warning": "12MB",
+      "comment": "Maximum total build size"
+    }
+  },
+  "ignorePaths": [
+    "**/*.map",
+    "**/*.txt",
+    "asset-manifest.json"
+  ],
+  "tracking": {
+    "enabled": true,
+    "provider": "github-actions",
+    "comment": "PostHog integration can be added by setting POSTHOG_API_KEY secret"
+  }
+}

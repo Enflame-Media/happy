@@ -23,6 +23,8 @@
     "lint:github-casing": "node ../scripts/lint-github-casing.mjs sources",
     "lint:env": "bash -c 'RESULT=$(grep -rn --include=\"*.ts\" --include=\"*.tsx\" \"process.env.\" sources/ | grep -v EXPO_PUBLIC_ | grep -v __testdata__ || true); if [ -n \"$RESULT\" ]; then echo \"❌ Found process.env usages without EXPO_PUBLIC_ prefix:\"; echo \"$RESULT\"; exit 1; else echo \"✓ All process.env usages use EXPO_PUBLIC_ prefix\"; fi'",
     "knip": "knip",
+    "analyze:bundle": "tsx sources/scripts/analyzeBundleSize.ts",
+    "analyze:bundle:ci": "tsx sources/scripts/analyzeBundleSize.ts --format github --fail-on-regression",
     "build:web": "NODE_ENV=production APP_ENV=production EXPO_PUBLIC_HAPPY_SERVER_URL=https://happy-api.enflamemedia.com npx expo export --platform web --output-dir dist",
     "build:web:preview": "NODE_ENV=production APP_ENV=preview EXPO_PUBLIC_HAPPY_SERVER_URL=https://happy-api-dev.enflamemedia.com npx expo export --platform web --output-dir dist",
     "build:web:dev": "NODE_ENV=development APP_ENV=development EXPO_PUBLIC_HAPPY_SERVER_URL=https://happy-api-dev.enflamemedia.com npx expo export --platform web --output-dir dist",
