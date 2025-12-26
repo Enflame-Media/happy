@@ -89,6 +89,11 @@ export const TabBar = React.memo(({ activeTab, onTabPress }: TabBarProps) => {
                             style={styles.tab}
                             onPress={() => onTabPress(tab.key)}
                             hitSlop={8}
+                            accessibilityRole="tab"
+                            accessibilityLabel={tab.label}
+                            accessibilityState={{
+                                selected: isActive,
+                            }}
                         >
                             <View style={styles.tabContent}>
                                 <Image

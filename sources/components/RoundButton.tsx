@@ -37,7 +37,7 @@ const stylesheet = StyleSheet.create((_theme) => ({
     },
 }));
 
-export const RoundButton = React.memo((props: { size?: RoundButtonSize, display?: RoundButtonDisplay, title?: any, style?: StyleProp<ViewStyle>, textStyle?: StyleProp<TextStyle>, disabled?: boolean, loading?: boolean, onPress?: () => void, action?: () => Promise<any> }) => {
+export const RoundButton = React.memo((props: { size?: RoundButtonSize, display?: RoundButtonDisplay, title?: any, style?: StyleProp<ViewStyle>, textStyle?: StyleProp<TextStyle>, disabled?: boolean, loading?: boolean, onPress?: () => void, action?: () => Promise<any>, accessibilityLabel?: string, accessibilityHint?: string }) => {
     const { theme } = useUnistyles();
     const styles = stylesheet;
     const [loading, setLoading] = React.useState(false);
@@ -79,6 +79,9 @@ export const RoundButton = React.memo((props: { size?: RoundButtonSize, display?
     const size = sizes[props.size || 'large'];
     const display = displays[props.display || 'default'];
 
+    // Compute accessible label from title if not provided
+    const effectiveA11yLabel = props.accessibilityLabel ?? (typeof props.title === 'string' ? props.title : undefined);
+
     return (
         <Pressable
             disabled={doLoading || props.disabled}
@@ -97,6 +100,13 @@ export const RoundButton = React.memo((props: { size?: RoundButtonSize, display?
                 },
                 props.style])}
             onPress={doAction}
+            accessibilityRole="button"
+            accessibilityLabel={effectiveA11yLabel}
+            accessibilityHint={props.accessibilityHint}
+            accessibilityState={{
+                disabled: doLoading || props.disabled,
+                busy: doLoading,
+            }}
         >
             <View 
                 style={[

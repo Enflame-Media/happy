@@ -648,6 +648,12 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle, 
                     onPress={handlePress}
                     onLongPress={handleLongPress}
                     delayLongPress={500}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${sessionName}, ${sessionStatus.statusText}`}
+                    accessibilityHint={isSelectMode ? (isEligibleForSelect ? 'Double tap to select' : 'Not available for selection') : 'Double tap to open session'}
+                    accessibilityState={{
+                        selected: selected || isSessionSelected,
+                    }}
                 >
                     <View style={styles.avatarContainer}>
                         {/* Project color indicator for visual distinction */}

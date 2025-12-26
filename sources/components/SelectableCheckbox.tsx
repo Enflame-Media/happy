@@ -107,6 +107,12 @@ export const SelectableCheckbox = React.memo(function SelectableCheckbox({
                 onPress={handlePress}
                 disabled={disabled}
                 hitSlop={8}
+                accessibilityRole="checkbox"
+                accessibilityLabel={selected ? 'Selected' : 'Not selected'}
+                accessibilityState={{
+                    checked: selected,
+                    disabled: disabled,
+                }}
             >
                 <Animated.View
                     style={[

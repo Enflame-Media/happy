@@ -61,11 +61,14 @@ function ManualAuthModal({ onClose, onSubmit }: { onClose: () => void; onSubmit:
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoFocus
+                accessibilityLabel={t('modals.pasteUrlFromTerminal')}
             />
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
                 <Pressable
                     onPress={onClose}
                     style={{ paddingVertical: 8, paddingHorizontal: 16, marginRight: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.cancel')}
                 >
                     <Text style={{ color: '#007AFF', fontSize: 16 }}>{t('common.cancel')}</Text>
                 </Pressable>
@@ -77,6 +80,8 @@ function ManualAuthModal({ onClose, onSubmit }: { onClose: () => void; onSubmit:
                         }
                     }}
                     style={{ paddingVertical: 8, paddingHorizontal: 16 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.authenticate')}
                 >
                     <Text style={{ color: '#007AFF', fontSize: 16, fontWeight: '600' }}>
                         {t('common.authenticate')}

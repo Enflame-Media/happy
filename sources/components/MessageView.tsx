@@ -106,7 +106,12 @@ function UserTextBlock(props: {
       <View style={styles.userMessageBubble}>
         <MarkdownView markdown={text} onOptionPress={handleOptionPress} />
         {needsTruncation && (
-          <Pressable onPress={handleToggle} style={styles.showMoreContainer}>
+          <Pressable
+            onPress={handleToggle}
+            style={styles.showMoreContainer}
+            accessibilityRole="button"
+            accessibilityLabel={expanded ? t('message.showLess') : t('message.showMore', { lines: hiddenLines })}
+          >
             <Text style={styles.showMoreText}>
               {expanded
                 ? t('message.showLess')
@@ -153,7 +158,12 @@ function AgentTextBlock(props: {
     <View style={styles.agentMessageContainer}>
       <MarkdownView markdown={text} onOptionPress={handleOptionPress} />
       {needsTruncation && (
-        <Pressable onPress={handleToggle} style={styles.showMoreContainer}>
+        <Pressable
+          onPress={handleToggle}
+          style={styles.showMoreContainer}
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? t('message.showLess') : t('message.showMore', { lines: hiddenLines })}
+        >
           <Text style={styles.showMoreText}>
             {expanded
               ? t('message.showLess')

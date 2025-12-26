@@ -51,6 +51,8 @@ export const FABWide = React.memo(({ onPress }: { onPress: () => void }) => {
                     pressed ? styles.buttonPressed : styles.buttonDefault
                 ]}
                 onPress={onPress}
+                accessibilityRole="button"
+                accessibilityLabel={t('newSession.fabAccessibilityLabel')}
             >
                 <Text style={styles.text}>{t('newSession.title')}</Text>
             </Pressable>

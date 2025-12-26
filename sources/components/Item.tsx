@@ -39,6 +39,10 @@ export interface ItemProps {
     dividerInset?: number;
     pressableStyle?: StyleProp<ViewStyle>;
     copy?: boolean | string;
+    // Accessibility props
+    accessibilityLabel?: string;
+    accessibilityHint?: string;
+    accessibilityRole?: 'button' | 'link' | 'menuitem' | 'switch' | 'none';
 }
 
 const stylesheet = StyleSheet.create((theme) => ({
@@ -142,7 +146,10 @@ export const Item = React.memo<ItemProps>((props) => {
         showDivider = true,
         dividerInset = isIOS ? 15 : 16,
         pressableStyle,
-        copy
+        copy,
+        accessibilityLabel,
+        accessibilityHint,
+        accessibilityRole = 'button'
     } = props;
 
     // Handle copy functionality
@@ -286,6 +293,11 @@ export const Item = React.memo<ItemProps>((props) => {
     );
 
     if (isInteractive) {
+        // Build accessibility label: use provided label or fall back to title + subtitle
+        const effectiveA11yLabel = accessibilityLabel ?? (subtitle ? `${title}, ${subtitle}` : title);
+        // Build accessibility hint: use provided hint or derive from copy functionality
+        const effectiveA11yHint = accessibilityHint ?? (copy && !isWeb ? 'Long press to copy' : undefined);
+
         return (
             <Pressable
                 onPress={handlePress}
@@ -305,6 +317,13 @@ export const Item = React.memo<ItemProps>((props) => {
                     borderless: false,
                     foreground: true
                 } : undefined}
+                accessibilityRole={accessibilityRole}
+                accessibilityLabel={effectiveA11yLabel}
+                accessibilityHint={effectiveA11yHint}
+                accessibilityState={{
+                    disabled: disabled || loading,
+                    selected: selected,
+                }}
             >
                 {content}
             </Pressable>
