@@ -11,6 +11,7 @@ import { AppError, ErrorCodes } from '@/utils/errors';
 import { getCurrentAuth } from '@/auth/AuthContext';
 import { AuthCredentials } from '@/auth/tokenStorage';
 import { fetchWithTimeout, FetchWithTimeoutOptions } from '@/utils/fetchWithTimeout';
+import { createApiTimer } from '@/utils/performance';
 
 // Re-export deduplication utilities for convenient access
 export {
@@ -206,6 +207,10 @@ export async function authenticatedFetch(
     context?: string
 ): Promise<Response> {
     const { useDedupe = false, headers = {}, ...fetchOptions } = options;
+    const method = (fetchOptions.method || 'GET').toUpperCase();
+
+    // Create API timer for latency tracking (HAP-483)
+    const apiTimer = createApiTimer(url, method);
 
     const makeRequest = async (token: string): Promise<Response> => {
         const requestOptions = {
@@ -242,6 +247,9 @@ export async function authenticatedFetch(
         }
         // If we get here without refreshResult, checkAuthErrorWithRefresh already threw
     }
+
+    // Track API latency (HAP-483)
+    apiTimer.stop(response.status);
 
     return response;
 }

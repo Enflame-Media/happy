@@ -749,3 +749,225 @@ export function useResourceMonitoring(): void {
         };
     }, []);
 }
+
+// ============================================================================
+// API Latency Tracking (HAP-483)
+// ============================================================================
+
+// API performance thresholds (ms)
+const API_SLOW_THRESHOLD = 1000; // 1 second
+const API_VERY_SLOW_THRESHOLD = 3000; // 3 seconds
+const API_METRICS_HISTORY_SIZE = 100;
+
+/**
+ * API latency metric for tracking individual API calls
+ */
+interface ApiLatencyMetric {
+    endpoint: string;
+    method: string;
+    duration: number;
+    status: number;
+    timestamp: number;
+}
+
+// Store recent API metrics for aggregate analysis
+const apiMetricsHistory: ApiLatencyMetric[] = [];
+
+/**
+ * Normalize an API endpoint for consistent tracking.
+ * Removes dynamic path segments (IDs, UUIDs) to group similar endpoints.
+ *
+ * @example
+ * normalizeEndpoint('/v1/sessions/abc-123/messages') → '/v1/sessions/:id/messages'
+ * normalizeEndpoint('/v1/artifacts/550e8400-e29b-41d4-a716-446655440000') → '/v1/artifacts/:id'
+ */
+function normalizeEndpoint(url: string): string {
+    try {
+        const urlObj = new URL(url);
+        // Replace UUIDs and numeric IDs with :id placeholder
+        const normalizedPath = urlObj.pathname
+            .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '/:id')
+            .replace(/\/\d+/g, '/:id')
+            .replace(/\/[a-zA-Z0-9_-]{20,}/g, '/:id'); // Long alphanumeric IDs
+        return normalizedPath;
+    } catch {
+        // If URL parsing fails, return as-is
+        return url;
+    }
+}
+
+/**
+ * Track an API call's latency.
+ * Reports to analytics with normalized endpoint and performance classification.
+ *
+ * @param url - The full API URL
+ * @param method - HTTP method (GET, POST, etc.)
+ * @param duration - Duration in milliseconds
+ * @param status - HTTP status code
+ *
+ * @example
+ * const start = performance.now();
+ * const response = await fetch(url);
+ * trackApiLatency(url, 'GET', performance.now() - start, response.status);
+ */
+export function trackApiLatency(
+    url: string,
+    method: string,
+    duration: number,
+    status: number
+): void {
+    const endpoint = normalizeEndpoint(url);
+    const metric: ApiLatencyMetric = {
+        endpoint,
+        method: method.toUpperCase(),
+        duration,
+        status,
+        timestamp: Date.now(),
+    };
+
+    // Store for aggregate analysis
+    apiMetricsHistory.push(metric);
+    if (apiMetricsHistory.length > API_METRICS_HISTORY_SIZE) {
+        apiMetricsHistory.shift();
+    }
+
+    // Determine if this is a slow request
+    const isSlow = duration > API_SLOW_THRESHOLD;
+    const isVerySlow = duration > API_VERY_SLOW_THRESHOLD;
+    const isError = status >= 400;
+
+    // Report slow or error requests immediately
+    if (isSlow || isError) {
+        scheduleIdleReport(() => {
+            tracking?.capture('perf_api_call', {
+                endpoint,
+                method: method.toUpperCase(),
+                duration_ms: Math.round(duration),
+                status,
+                is_slow: isSlow,
+                is_very_slow: isVerySlow,
+                is_error: isError,
+                platform: Platform.OS,
+            });
+
+            if (isVerySlow) {
+                console.warn(
+                    `[Performance] Very slow API call: ${method.toUpperCase()} ${endpoint} - ${Math.round(duration)}ms (status: ${status})`
+                );
+            }
+        });
+    }
+}
+
+/**
+ * Create a timer for tracking API call duration.
+ * Returns a stop function that records the latency when called.
+ *
+ * @param url - The API URL being called
+ * @param method - HTTP method
+ * @returns Object with stop function to call when request completes
+ *
+ * @example
+ * const timer = createApiTimer('/v1/sessions', 'GET');
+ * const response = await fetch(url);
+ * timer.stop(response.status);
+ */
+export function createApiTimer(url: string, method: string): {
+    stop: (status: number) => number;
+} {
+    const start = performance.now();
+
+    return {
+        stop: (status: number) => {
+            const duration = performance.now() - start;
+            trackApiLatency(url, method, duration, status);
+            return duration;
+        },
+    };
+}
+
+/**
+ * Get aggregate API performance metrics for a specific endpoint.
+ *
+ * @param endpoint - Normalized endpoint path (or partial match)
+ * @returns Aggregate statistics or null if no data
+ */
+export function getApiMetrics(endpoint?: string): {
+    avgDuration: number;
+    maxDuration: number;
+    minDuration: number;
+    errorRate: number;
+    sampleCount: number;
+} | null {
+    const metrics = endpoint
+        ? apiMetricsHistory.filter(m => m.endpoint.includes(endpoint))
+        : apiMetricsHistory;
+
+    if (metrics.length === 0) {
+        return null;
+    }
+
+    const durations = metrics.map(m => m.duration);
+    const errors = metrics.filter(m => m.status >= 400).length;
+
+    return {
+        avgDuration: Math.round(durations.reduce((a, b) => a + b, 0) / durations.length),
+        maxDuration: Math.round(Math.max(...durations)),
+        minDuration: Math.round(Math.min(...durations)),
+        errorRate: Math.round((errors / metrics.length) * 100) / 100,
+        sampleCount: metrics.length,
+    };
+}
+
+/**
+ * Report aggregate API performance to analytics.
+ * Call periodically (e.g., on app background) to capture overall API health.
+ */
+export function reportApiHealth(): void {
+    if (apiMetricsHistory.length === 0) {
+        return;
+    }
+
+    const metrics = getApiMetrics();
+    if (!metrics) return;
+
+    // Group by endpoint for detailed breakdown
+    const endpointGroups = new Map<string, ApiLatencyMetric[]>();
+    for (const metric of apiMetricsHistory) {
+        const existing = endpointGroups.get(metric.endpoint) || [];
+        existing.push(metric);
+        endpointGroups.set(metric.endpoint, existing);
+    }
+
+    // Find slowest endpoints
+    const endpointStats = Array.from(endpointGroups.entries()).map(([endpoint, metrics]) => {
+        const durations = metrics.map(m => m.duration);
+        return {
+            endpoint,
+            avgDuration: durations.reduce((a, b) => a + b, 0) / durations.length,
+            count: metrics.length,
+        };
+    });
+
+    const slowestEndpoints = endpointStats
+        .sort((a, b) => b.avgDuration - a.avgDuration)
+        .slice(0, 5)
+        .map(e => `${e.endpoint}:${Math.round(e.avgDuration)}ms`);
+
+    scheduleIdleReport(() => {
+        tracking?.capture('perf_api_health', {
+            avg_duration_ms: metrics.avgDuration,
+            max_duration_ms: metrics.maxDuration,
+            min_duration_ms: metrics.minDuration,
+            error_rate: metrics.errorRate,
+            sample_count: metrics.sampleCount,
+            slowest_endpoints: slowestEndpoints,
+            platform: Platform.OS,
+        });
+
+        console.log(
+            `[Performance] API Health: avg=${metrics.avgDuration}ms, ` +
+            `max=${metrics.maxDuration}ms, errors=${Math.round(metrics.errorRate * 100)}%`
+        );
+    });
+}

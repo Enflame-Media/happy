@@ -3,17 +3,24 @@ import { tracking } from './tracking';
 // Re-export tracking for direct access
 export { tracking } from './tracking';
 
-// Re-export performance monitoring utilities (HAP-336)
+// Re-export performance monitoring utilities (HAP-336, HAP-483)
 export {
+    // Startup tracking (HAP-336)
     markAppStart,
     markFirstRender,
     getStartupDuration,
+    // Screen render tracking (HAP-336)
     trackScreenRender,
     getScreenBaseline,
     getAllScreenBaselines,
     logBaselines,
     reportBaselines,
     createTimer,
+    // API latency tracking (HAP-483)
+    trackApiLatency,
+    createApiTimer,
+    getApiMetrics,
+    reportApiHealth,
 } from '@/utils/performance';
 
 /**
