@@ -25,6 +25,7 @@ const DEFAULT_MAX_QUEUE_SIZE = 5;
 const DEFAULT_PREVENT_DUPLICATES = true;
 const DEFAULT_MAX_HIGH_PRIORITY_QUEUE_SIZE = 3;
 const DEFAULT_HIGH_PRIORITY_OVERFLOW: 'drop-oldest' | 'drop-newest' | 'downgrade' = 'drop-newest';
+const DEFAULT_AUTO_HIGH_PRIORITY_ERRORS = true;
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
@@ -54,6 +55,7 @@ export function ToastProvider({ children, queueConfig }: ToastProviderProps) {
     const preventDuplicates = queueConfig?.preventDuplicates ?? DEFAULT_PREVENT_DUPLICATES;
     const maxHighPriorityQueueSize = queueConfig?.maxHighPriorityQueueSize ?? DEFAULT_MAX_HIGH_PRIORITY_QUEUE_SIZE;
     const highPriorityOverflow = queueConfig?.highPriorityOverflow ?? DEFAULT_HIGH_PRIORITY_OVERFLOW;
+    const autoHighPriorityErrors = queueConfig?.autoHighPriorityErrors ?? DEFAULT_AUTO_HIGH_PRIORITY_ERRORS;
 
     const [state, setState] = useState<ToastState>({ current: null, queue: [], interrupted: null });
     const insets = useSafeAreaInsets();
@@ -211,13 +213,21 @@ export function ToastProvider({ children, queueConfig }: ToastProviderProps) {
 
     const showToast = useCallback((config: Omit<ToastConfig, 'id'>): string => {
         const id = generateId();
-        const isHighPriority = config.priority === 'high';
 
-        // Create the toast config
+        // Auto-promote error toasts to high priority (unless explicitly set to normal)
+        const effectivePriority =
+            config.type === 'error' && config.priority === undefined && autoHighPriorityErrors
+                ? 'high'
+                : config.priority;
+
+        const isHighPriority = effectivePriority === 'high';
+
+        // Create the toast config with effective priority
         const toastConfig: ToastConfig = {
             ...config,
             id,
             duration: config.duration ?? DEFAULT_DURATION,
+            priority: effectivePriority,
         };
 
         setState((prev) => {
@@ -437,7 +447,7 @@ export function ToastProvider({ children, queueConfig }: ToastProviderProps) {
         });
 
         return id;
-    }, [generateId, fadeAnim, hideToast, preventDuplicates, maxQueueSize, maxHighPriorityQueueSize, highPriorityOverflow]);
+    }, [generateId, fadeAnim, hideToast, preventDuplicates, maxQueueSize, maxHighPriorityQueueSize, highPriorityOverflow, autoHighPriorityErrors]);
 
     // Register functions with ToastManager
     useEffect(() => {

@@ -44,6 +44,12 @@ export interface ToastQueueConfig {
      * - 'downgrade': Convert new high-priority to normal priority
      */
     highPriorityOverflow?: 'drop-oldest' | 'drop-newest' | 'downgrade';
+    /**
+     * If true, type: 'error' toasts automatically use high priority (default: true).
+     * This ensures error messages interrupt normal toasts and show immediately.
+     * Set to false to disable auto-promotion, or explicitly set priority: 'normal' on individual toasts.
+     */
+    autoHighPriorityErrors?: boolean;
 }
 
 export interface ToastState {
