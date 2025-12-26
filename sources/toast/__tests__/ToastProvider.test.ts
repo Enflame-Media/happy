@@ -5,6 +5,7 @@
  * - HAP-462: Basic queue behavior (FIFO ordering, queue limits)
  * - HAP-517: Priority toast support (high-priority interruption, queue behavior)
  * - HAP-542: High-priority queue depth limit (overflow strategies)
+ * - HAP-543: Auto-promote error toasts to high priority (autoHighPriorityErrors)
  *
  * Test categories:
  * - Queue Behavior: FIFO ordering, queue limits, overflow handling
@@ -14,6 +15,7 @@
  * - High-Priority Interruption: Interrupt current toast, remaining duration
  * - High-Priority Queue: Queue ordering among high-priority toasts
  * - Overflow Handling: drop-newest, drop-oldest, downgrade strategies
+ * - Auto-promote Error Toasts: Error type auto-promoted to high priority
  *
  * @module toast/__tests__/ToastProvider.test
  */
@@ -1554,6 +1556,43 @@ describe('ToastProvider Queue System', () => {
             );
 
             expect(wasDropped).toBe(true);
+        });
+
+        it('auto-promoted error interrupts normal toast, normal toast resumes after', () => {
+            // Setup: Normal toast is currently visible
+            const normalToast = createToastConfig({
+                id: 'normal-1',
+                message: 'Normal toast',
+                priority: 'normal',
+                duration: 5000,
+            });
+            const state = createMockState({ current: normalToast });
+
+            // 1. Error (auto-promoted) interrupts after 2 seconds
+            const { newState: afterError } = simulateShowToast(
+                state,
+                { message: 'Error occurred!', type: 'error' },
+                { generateId: () => 'error-1', elapsedTime: 2000 }
+            );
+
+            // Error should be current, normal should be interrupted with remaining duration
+            expect(afterError.current?.id).toBe('error-1');
+            expect(afterError.current?.type).toBe('error');
+            expect(afterError.current?.priority).toBe('high');
+            expect(afterError.interrupted?.id).toBe('normal-1');
+            expect(afterError.interrupted?.remainingDuration).toBe(3000); // 5000 - 2000
+
+            // 2. Error toast dismisses, normal toast resumes
+            const afterErrorDismissed = simulateShowNextFromQueue({
+                current: null,
+                queue: afterError.queue,
+                interrupted: afterError.interrupted,
+            });
+
+            // Normal toast should resume with remaining duration
+            expect(afterErrorDismissed.current?.id).toBe('normal-1');
+            expect(afterErrorDismissed.current?.duration).toBe(3000);
+            expect(afterErrorDismissed.interrupted).toBeNull();
         });
     });
 });
