@@ -2,6 +2,87 @@ import * as z from 'zod';
 import { MessageMetaSchema, MessageMeta } from './typesMessageMeta';
 
 //
+// Validation Metrics
+//
+// Lightweight in-memory counters for tracking schema validation failures.
+// These help monitor CLI↔App message contract health without impacting performance.
+//
+
+interface ValidationStats {
+    /** Count of messages that failed initial Zod schema validation */
+    schemaFailures: number;
+    /** Count of messages with unknown output data types (e.g., new Claude SDK types) */
+    unknownTypes: number;
+    /** Count of messages that passed loose validation but failed strict validation */
+    strictValidationFailures: number;
+    /** Map of unknown type names to their occurrence count */
+    unknownTypeBreakdown: Record<string, number>;
+    /** Timestamp of first validation failure in this session */
+    firstFailureAt: number | null;
+    /** Timestamp of most recent validation failure */
+    lastFailureAt: number | null;
+}
+
+const validationStats: ValidationStats = {
+    schemaFailures: 0,
+    unknownTypes: 0,
+    strictValidationFailures: 0,
+    unknownTypeBreakdown: {},
+    firstFailureAt: null,
+    lastFailureAt: null,
+};
+
+/**
+ * Get current validation statistics for debugging and monitoring.
+ * Stats reset when the app restarts (in-memory only).
+ *
+ * @example
+ * // In dev tools or debugging:
+ * import { getValidationStats } from './typesRaw';
+ * console.log(getValidationStats());
+ * // => { schemaFailures: 2, unknownTypes: 5, unknownTypeBreakdown: { 'thinking': 3, 'status': 2 }, ... }
+ */
+export function getValidationStats(): Readonly<ValidationStats> {
+    return { ...validationStats, unknownTypeBreakdown: { ...validationStats.unknownTypeBreakdown } };
+}
+
+/**
+ * Reset validation statistics. Useful for testing or starting fresh measurements.
+ */
+export function resetValidationStats(): void {
+    validationStats.schemaFailures = 0;
+    validationStats.unknownTypes = 0;
+    validationStats.strictValidationFailures = 0;
+    validationStats.unknownTypeBreakdown = {};
+    validationStats.firstFailureAt = null;
+    validationStats.lastFailureAt = null;
+}
+
+function recordValidationFailure(type: 'schema' | 'unknown' | 'strict', unknownTypeName?: string): void {
+    const now = Date.now();
+    if (validationStats.firstFailureAt === null) {
+        validationStats.firstFailureAt = now;
+    }
+    validationStats.lastFailureAt = now;
+
+    switch (type) {
+        case 'schema':
+            validationStats.schemaFailures++;
+            break;
+        case 'unknown':
+            validationStats.unknownTypes++;
+            if (unknownTypeName) {
+                validationStats.unknownTypeBreakdown[unknownTypeName] =
+                    (validationStats.unknownTypeBreakdown[unknownTypeName] || 0) + 1;
+            }
+            break;
+        case 'strict':
+            validationStats.strictValidationFailures++;
+            break;
+    }
+}
+
+//
 // Raw types
 //
 
@@ -215,6 +296,9 @@ export function normalizeRawMessage(id: string, localId: string | null, createdA
     // First pass: loose validation to accept messages without console spam
     let parsed = rawRecordSchema.safeParse(raw);
     if (!parsed.success) {
+        // Track schema validation failures for production monitoring
+        recordValidationFailure('schema');
+
         // Only log validation errors in development mode to avoid console spam in production
         // These failures are expected when CLI sends new message types not yet in the schema
         if (__DEV__) {
@@ -253,6 +337,9 @@ export function normalizeRawMessage(id: string, localId: string | null, createdA
 
             // Check if this is a known output type before processing
             if (!isKnownOutputType(raw.content.data.type)) {
+                // Track unknown type encounters with the specific type name for analysis
+                recordValidationFailure('unknown', raw.content.data.type);
+
                 // Unknown output data type - gracefully drop with debug logging
                 // This handles new message types from Claude SDK that aren't yet in the schema
                 if (__DEV__) {
@@ -268,6 +355,9 @@ export function normalizeRawMessage(id: string, localId: string | null, createdA
             // Second pass: strict validation for known types to get proper type narrowing
             const strictParsed = rawOutputDataSchema.and(outputCommonFieldsSchema).safeParse(raw.content.data);
             if (!strictParsed.success) {
+                // Track strict validation failures (rare, indicates schema mismatch)
+                recordValidationFailure('strict');
+
                 // This shouldn't happen for known types, but log it just in case
                 if (__DEV__) {
                     console.debug('[typesRaw] Strict validation failed for known output type:', {
