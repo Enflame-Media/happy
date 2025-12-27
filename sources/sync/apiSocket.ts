@@ -6,6 +6,7 @@ import {
     CORRELATION_ID_HEADER,
     getSessionCorrelationId,
     generateRequestCorrelationId,
+    setLastFailedCorrelationId,
 } from '@/utils/correlationId';
 import * as Crypto from 'expo-crypto';
 
@@ -558,6 +559,7 @@ class ApiSocket {
 
         const url = `${this.config.endpoint}${path}`;
         // HAP-510: Include correlation ID in all API requests
+        // HAP-585: Store correlation ID for failed operations debugging
         const correlationId = generateRequestCorrelationId();
         const headers = {
             'Authorization': `Bearer ${credentials.token}`,
@@ -565,10 +567,23 @@ class ApiSocket {
             ...options?.headers
         };
 
-        return fetch(url, {
-            ...options,
-            headers
-        });
+        try {
+            const response = await fetch(url, {
+                ...options,
+                headers
+            });
+
+            // HAP-585: Store correlation ID for non-ok responses so it can be shown in error UI
+            if (!response.ok) {
+                setLastFailedCorrelationId(correlationId);
+            }
+
+            return response;
+        } catch (error) {
+            // HAP-585: Store correlation ID for network errors
+            setLastFailedCorrelationId(correlationId);
+            throw error;
+        }
     }
 
     //

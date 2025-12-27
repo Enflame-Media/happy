@@ -6,6 +6,7 @@ import { ChatHeaderView } from '@/components/ChatHeaderView';
 import { ChatList } from '@/components/ChatList';
 import { Deferred } from '@/components/Deferred';
 import { EmptyMessages } from '@/components/EmptyMessages';
+import { SyncFailedBanner } from '@/components/SyncFailedBanner';
 import { VoiceAssistantStatusBar } from '@/components/VoiceAssistantStatusBar';
 import { SessionTabs } from '@/components/SessionTabs';
 import { useDraft } from '@/hooks/useDraft';
@@ -23,6 +24,7 @@ import { Toast } from '@/toast';
 import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
 import { t } from '@/text';
+import { getLastFailedCorrelationId, getDisplayCorrelationId } from '@/utils/correlationId';
 import { tracking, trackMessageSent } from '@/track';
 import { isRunningOnMac } from '@/utils/platform';
 import { useTrackMountTime } from '@/hooks/usePerformanceMonitor';
@@ -34,6 +36,7 @@ import { useRouter } from 'expo-router';
 import * as React from 'react';
 import { useMemo, useEffect, useState, useCallback } from 'react';
 import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -420,6 +423,13 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         sync.onSessionVisible(sessionId);
     }, [sessionId]);
 
+    // HAP-585: Copy correlation ID to clipboard for support
+    const handleCopyCorrelationId = useCallback(async () => {
+        const correlationId = getLastFailedCorrelationId() || getDisplayCorrelationId();
+        await Clipboard.setStringAsync(correlationId);
+        Toast.show({ message: t('errors.supportIdCopied') });
+    }, []);
+
     // HAP-327: Get active sessions count for session tabs visibility
     const allSessions = useAllSessions();
     const activeSessionsCount = React.useMemo(() => {
@@ -541,8 +551,16 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         gitStatusSync.getSync(sessionId);
     }, [sessionId, realtimeStatus]);
 
+    // HAP-586: Determine if we should show sync failed banner
+    // Show when: sync not complete (!isLoaded), timeout occurred, but we have cached messages
+    const showSyncFailedBanner = !isLoaded && loadingTimedOut && messages.length > 0;
+
     let content = (
         <>
+            {/* HAP-586: Show banner when displaying cached messages due to sync failure */}
+            {showSyncFailedBanner && (
+                <SyncFailedBanner onRetry={handleRetryLoad} />
+            )}
             <Deferred>
                 {messages.length > 0 && (
                     <ChatList session={session} />
@@ -556,15 +574,30 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                 <EmptyMessages session={session} />
             ) : loadingTimedOut ? (
                 // HAP-581: Show timeout error with retry option
-                <Pressable onPress={handleRetryLoad} style={styles.loadingTimeoutContainer}>
-                    <Ionicons name="refresh-circle-outline" size={32} color={theme.colors.textSecondary} />
+                // HAP-585: Include correlation ID for support debugging
+                <View style={styles.loadingTimeoutContainer}>
+                    <Pressable onPress={handleRetryLoad}>
+                        <Ionicons name="refresh-circle-outline" size={32} color={theme.colors.textSecondary} />
+                    </Pressable>
                     <Text style={[styles.loadingTimeoutText, { color: theme.colors.textSecondary }]}>
                         {t('errors.messagesLoadingTimeout')}
                     </Text>
-                    <Text style={[styles.loadingTimeoutRetry, { color: theme.colors.textLink }]}>
-                        {t('errors.messagesLoadingTimeoutRetry')}
-                    </Text>
-                </Pressable>
+                    <Pressable onPress={handleRetryLoad}>
+                        <Text style={[styles.loadingTimeoutRetry, { color: theme.colors.textLink }]}>
+                            {t('errors.messagesLoadingTimeoutRetry')}
+                        </Text>
+                    </Pressable>
+                    {/* HAP-585: Correlation ID for support - tap to copy */}
+                    <Pressable onPress={handleCopyCorrelationId} style={styles.correlationIdContainer}>
+                        <Text style={[styles.correlationIdLabel, { color: theme.colors.textSecondary }]}>
+                            {t('errors.copySupportId')}:
+                        </Text>
+                        <Text style={[styles.correlationIdValue, { color: theme.colors.textSecondary }]}>
+                            {getLastFailedCorrelationId()?.slice(-12) || getDisplayCorrelationId()}
+                        </Text>
+                        <Ionicons name="copy-outline" size={14} color={theme.colors.textSecondary} />
+                    </Pressable>
+                </View>
             ) : (
                 <ActivityIndicator size="small" color={theme.colors.textSecondary} />
             )}
@@ -588,6 +621,9 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
             throw new AppError(ErrorCodes.INTERNAL_ERROR, t('sessionInfo.restoreRequiresMachine'), { canTryAgain: false });
         }
 
+        // HAP-584: Capture spawn time BEFORE RPC call for optimistic polling fallback
+        const spawnStartTime = Date.now();
+
         const result = await machineSpawnNewSession({
             machineId: session.metadata.machineId,
             directory: session.metadata.path,
@@ -602,11 +638,11 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
             throw new AppError(ErrorCodes.INTERNAL_ERROR, t('sessionInfo.failedToRestoreSession'), { canTryAgain: false });
         }
 
-        let sessionId = result.sessionId;
+        let sessionId: string | null = result.sessionId;
 
         // HAP-488: Check for temporary PID-based session ID
         if (isTemporaryPidSessionId(result.sessionId)) {
-            const spawnStartTime = Date.now();
+            // HAP-584: Use pre-captured spawnStartTime for polling
             const realSessionId = await pollForRealSession(
                 session.metadata.machineId,
                 spawnStartTime,
@@ -618,6 +654,20 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
             }
 
             sessionId = realSessionId;
+        } else if (!sessionId) {
+            // HAP-584: Optimistic polling fallback
+            // The RPC may have timed out even though the session was created successfully.
+            const polledSessionId = await pollForRealSession(
+                session.metadata.machineId,
+                spawnStartTime,
+                { interval: 3000, maxAttempts: 10 }
+            );
+
+            if (!polledSessionId) {
+                throw new AppError(ErrorCodes.INTERNAL_ERROR, t('sessionInfo.failedToRestoreSession'), { canTryAgain: true });
+            }
+
+            sessionId = polledSessionId;
         }
 
         Toast.show({ message: t('sessionInfo.restoreSessionSuccess') });
@@ -818,6 +868,24 @@ const stylesheet = StyleSheet.create((theme) => ({
         fontSize: 14,
         fontWeight: '600',
         marginTop: 8,
+    },
+    // HAP-585: Correlation ID for support debugging
+    correlationIdContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 16,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        backgroundColor: 'rgba(128, 128, 128, 0.1)',
+        borderRadius: 8,
+        gap: 6,
+    },
+    correlationIdLabel: {
+        fontSize: 12,
+    },
+    correlationIdValue: {
+        fontSize: 12,
+        fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
     },
     // Deleted state container
     deletedContainer: {

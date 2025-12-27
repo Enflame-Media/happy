@@ -370,6 +370,11 @@ export const pl: TranslationStructure = {
             connected: 'Połączono',
             disconnected: 'Rozłączono',
         },
+        // HAP-586: Sync failed banner for graceful degradation
+        syncFailedBanner: {
+            message: 'Wyświetlanie wiadomości z pamięci podręcznej - synchronizacja nie powiodła się',
+            retry: 'Ponów',
+        },
     },
 
     commandPalette: {

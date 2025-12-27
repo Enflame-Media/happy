@@ -359,6 +359,11 @@ export const pt: TranslationStructure = {
             connected: 'Conectado',
             disconnected: 'Desconectado',
         },
+        // HAP-586: Sync failed banner for graceful degradation
+        syncFailedBanner: {
+            message: 'Mostrando mensagens em cache - sincronização falhou',
+            retry: 'Tentar novamente',
+        },
     },
 
     commandPalette: {

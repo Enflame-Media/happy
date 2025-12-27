@@ -236,6 +236,9 @@ function SessionInfoContent({ session }: { session: Session }) {
             throw new AppError(ErrorCodes.INTERNAL_ERROR, t('sessionInfo.restoreRequiresMachine'), { canTryAgain: false });
         }
 
+        // HAP-584: Capture spawn time BEFORE RPC call for optimistic polling fallback
+        const spawnStartTime = Date.now();
+
         const result = await machineSpawnNewSession({
             machineId: session.metadata.machineId,
             directory: session.metadata.path,
@@ -250,11 +253,11 @@ function SessionInfoContent({ session }: { session: Session }) {
             throw new AppError(ErrorCodes.INTERNAL_ERROR, t('sessionInfo.failedToRestoreSession'), { canTryAgain: false });
         }
 
-        let sessionId = result.sessionId;
+        let sessionId: string | null = result.sessionId;
 
         // HAP-488: Check for temporary PID-based session ID
         if (isTemporaryPidSessionId(result.sessionId)) {
-            const spawnStartTime = Date.now();
+            // HAP-584: Use pre-captured spawnStartTime for polling
             const realSessionId = await pollForRealSession(
                 session.metadata.machineId,
                 spawnStartTime,
@@ -266,6 +269,20 @@ function SessionInfoContent({ session }: { session: Session }) {
             }
 
             sessionId = realSessionId;
+        } else if (!sessionId) {
+            // HAP-584: Optimistic polling fallback
+            // The RPC may have timed out even though the session was created successfully.
+            const polledSessionId = await pollForRealSession(
+                session.metadata.machineId,
+                spawnStartTime,
+                { interval: 3000, maxAttempts: 10 }
+            );
+
+            if (!polledSessionId) {
+                throw new AppError(ErrorCodes.INTERNAL_ERROR, t('sessionInfo.failedToRestoreSession'), { canTryAgain: true });
+            }
+
+            sessionId = polledSessionId;
         }
 
         // Success - navigate to the new session

@@ -553,6 +553,11 @@ export const ru: TranslationStructure = {
             connected: 'Подключено',
             disconnected: 'Отключено',
         },
+        // HAP-586: Sync failed banner for graceful degradation
+        syncFailedBanner: {
+            message: 'Показаны кешированные сообщения - синхронизация не удалась',
+            retry: 'Повторить',
+        },
     },
 
     commandPalette: {

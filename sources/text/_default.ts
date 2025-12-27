@@ -359,6 +359,11 @@ export const en = {
             connected: 'Connected',
             disconnected: 'Disconnected',
         },
+        // HAP-586: Sync failed banner for graceful degradation
+        syncFailedBanner: {
+            message: 'Showing cached messages - sync failed',
+            retry: 'Retry',
+        },
     },
 
     commandPalette: {

@@ -179,6 +179,9 @@ export function useBulkSessionRestore(): UseBulkSessionRestoreReturn {
                 }
 
                 try {
+                    // HAP-584: Capture spawn time BEFORE RPC call for optimistic polling fallback
+                    const spawnStartTime = Date.now();
+
                     // Attempt restore with timeout
                     const result = await withTimeout<SpawnSessionResult>(
                         machineSpawnNewSession({
@@ -192,11 +195,11 @@ export function useBulkSessionRestore(): UseBulkSessionRestoreReturn {
                     );
 
                     if (result.type === 'success') {
-                        let newSessionId = result.sessionId;
+                        let newSessionId: string | null = result.sessionId;
 
                         // HAP-488: Check for temporary PID-based session ID
                         if (isTemporaryPidSessionId(result.sessionId)) {
-                            const spawnStartTime = Date.now();
+                            // HAP-584: Use pre-captured spawnStartTime for polling
                             const realSessionId = await pollForRealSession(
                                 session.metadata.machineId,
                                 spawnStartTime,
@@ -213,6 +216,25 @@ export function useBulkSessionRestore(): UseBulkSessionRestoreReturn {
                             }
 
                             newSessionId = realSessionId;
+                        } else if (!newSessionId) {
+                            // HAP-584: Optimistic polling fallback
+                            // The RPC may have timed out even though the session was created successfully.
+                            const polledSessionId = await pollForRealSession(
+                                session.metadata.machineId,
+                                spawnStartTime,
+                                { interval: 3000, maxAttempts: 10 }
+                            );
+
+                            if (!polledSessionId) {
+                                return {
+                                    sessionId: session.id,
+                                    sessionName,
+                                    success: false,
+                                    error: t('sessionInfo.failedToRestoreSession'),
+                                };
+                            }
+
+                            newSessionId = polledSessionId;
                         }
 
                         return {

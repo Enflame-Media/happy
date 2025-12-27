@@ -361,6 +361,11 @@ export const zhHans: TranslationStructure = {
             connected: '已连接',
             disconnected: '已断开',
         },
+        // HAP-586: Sync failed banner for graceful degradation
+        syncFailedBanner: {
+            message: '显示缓存消息 - 同步失败',
+            retry: '重试',
+        },
     },
 
     commandPalette: {

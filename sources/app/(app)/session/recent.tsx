@@ -257,6 +257,9 @@ function SessionHistory() {
         setResumingSessionId(session.id);
 
         try {
+            // HAP-584: Capture spawn time BEFORE RPC call for optimistic polling fallback
+            const spawnStartTime = Date.now();
+
             const result = await machineSpawnNewSession({
                 machineId: session.metadata.machineId,
                 directory: session.metadata.path,
@@ -265,12 +268,14 @@ function SessionHistory() {
                 sessionId: session.metadata.claudeSessionId,
             });
 
+            let sessionId: string | null = null;
+
             if ('sessionId' in result && result.sessionId) {
-                let sessionId = result.sessionId;
+                sessionId = result.sessionId;
 
                 // HAP-488: Check for temporary PID-based session ID
                 if (isTemporaryPidSessionId(result.sessionId)) {
-                    const spawnStartTime = Date.now();
+                    // HAP-584: Use pre-captured spawnStartTime for polling
                     const realSessionId = await pollForRealSession(
                         session.metadata.machineId,
                         spawnStartTime,
@@ -284,19 +289,32 @@ function SessionHistory() {
 
                     sessionId = realSessionId;
                 }
-
-                // Refresh sessions to get the new one
-                await sync.refreshSessions();
-
-                // Navigate to the new session
-                router.replace(`/session/${sessionId}`, {
-                    dangerouslySingular() {
-                        return 'session';
-                    },
-                });
             } else {
-                Modal.alert(t('common.error'), t('sessionHistory.resumeFailed'));
+                // HAP-584: Optimistic polling fallback
+                // The RPC may have timed out even though the session was created successfully.
+                const polledSessionId = await pollForRealSession(
+                    session.metadata.machineId,
+                    spawnStartTime,
+                    { interval: 3000, maxAttempts: 10 }
+                );
+
+                if (polledSessionId) {
+                    sessionId = polledSessionId;
+                } else {
+                    Modal.alert(t('common.error'), t('sessionHistory.resumeFailed'));
+                    return;
+                }
             }
+
+            // Refresh sessions to get the new one
+            await sync.refreshSessions();
+
+            // Navigate to the new session
+            router.replace(`/session/${sessionId}`, {
+                dangerouslySingular() {
+                    return 'session';
+                },
+            });
         } catch (error) {
             console.error('Failed to resume session:', error);
             // HAP-544: Use showError for "Copy ID" button on server errors

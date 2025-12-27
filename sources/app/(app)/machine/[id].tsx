@@ -214,6 +214,10 @@ function MachineDetailScreen() {
             if (!isMachineOnline(machine)) return;
             setIsSpawning(true);
             const absolutePath = resolveAbsolutePath(pathToUse, machine?.metadata?.homeDir);
+
+            // HAP-584: Capture spawn time BEFORE RPC call for optimistic polling fallback
+            const spawnStartTime = Date.now();
+
             const result = await machineSpawnNewSession({
                 machineId: machineId!,
                 directory: absolutePath,
@@ -221,11 +225,11 @@ function MachineDetailScreen() {
             });
             switch (result.type) {
                 case 'success': {
-                    let sessionId = result.sessionId;
+                    let sessionId: string | null = result.sessionId;
 
                     // HAP-488: Check for temporary PID-based session ID
                     if (isTemporaryPidSessionId(result.sessionId)) {
-                        const spawnStartTime = Date.now();
+                        // HAP-584: Use pre-captured spawnStartTime for polling
                         const realSessionId = await pollForRealSession(
                             machineId!,
                             spawnStartTime,
@@ -238,6 +242,21 @@ function MachineDetailScreen() {
                         }
 
                         sessionId = realSessionId;
+                    } else if (!sessionId) {
+                        // HAP-584: Optimistic polling fallback
+                        // The RPC may have timed out even though the session was created successfully.
+                        const polledSessionId = await pollForRealSession(
+                            machineId!,
+                            spawnStartTime,
+                            { interval: 3000, maxAttempts: 10 }
+                        );
+
+                        if (!polledSessionId) {
+                            Modal.alert(t('common.error'), t('newSession.sessionStartFailed'));
+                            return;
+                        }
+
+                        sessionId = polledSessionId;
                     }
 
                     // Dismiss machine picker & machine detail screen
