@@ -1,14 +1,15 @@
 /**
- * Analytics API module for reporting sync metrics to the server.
+ * Analytics API module for reporting metrics to the server.
  *
- * HAP-547: This module provides fire-and-forget metrics reporting
- * to enable server-side analytics without impacting sync performance.
+ * HAP-547: Sync metrics reporting
+ * HAP-577: Validation failure metrics reporting
  *
  * Design principles:
- * - Fire-and-forget: Never blocks sync operations
+ * - Fire-and-forget: Never blocks app operations
  * - Silent failures: Network errors are caught and ignored
  * - Authentication-aware: Only reports when credentials are available
  * - Timeout-protected: 5-second abort to prevent hanging connections
+ * - Batched: Validation metrics are batched and sent periodically
  */
 
 import { AuthCredentials } from '@/auth/tokenStorage';
@@ -84,6 +85,76 @@ export function reportSyncMetric(metric: SyncMetricPayload): void {
         } catch {
             // Silently ignore all errors (network, timeout, abort, etc.)
             // This is intentional to avoid any impact on sync UX
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    })();
+}
+
+// ============================================================================
+// Validation Metrics (HAP-577)
+// ============================================================================
+
+/**
+ * Validation metrics payload matching the server's expected format.
+ * Contains aggregated validation failure statistics.
+ */
+export interface ValidationMetricsPayload {
+    schemaFailures: number;
+    unknownTypes: number;
+    strictValidationFailures: number;
+    unknownTypeBreakdown: Array<{ typeName: string; count: number }>;
+    sessionDurationMs: number;
+    firstFailureAt: number | null;
+    lastFailureAt: number | null;
+}
+
+/**
+ * Reports validation metrics to the analytics endpoint.
+ *
+ * This function is designed to be fire-and-forget:
+ * - Does not return a promise that callers should await
+ * - Silently ignores all errors (network, timeout, auth, etc.)
+ * - Uses AbortController with 5-second timeout
+ * - Only reports when authenticated and there are metrics to report
+ *
+ * @param metrics - The validation metrics to report
+ */
+export function reportValidationMetrics(metrics: ValidationMetricsPayload): void {
+    // Don't report if not authenticated
+    if (!analyticsCredentials) {
+        return;
+    }
+
+    // Don't report if there are no failures to report
+    const totalFailures = metrics.schemaFailures + metrics.unknownTypes + metrics.strictValidationFailures;
+    if (totalFailures === 0) {
+        return;
+    }
+
+    const API_ENDPOINT = getServerUrl();
+    const url = `${API_ENDPOINT}/v1/analytics/client/validation`;
+
+    // Create AbortController for 5-second timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    // Fire-and-forget: execute but don't await
+    void (async () => {
+        try {
+            await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${analyticsCredentials!.token}`,
+                },
+                body: JSON.stringify(metrics),
+                signal: controller.signal,
+            });
+            // Response is intentionally ignored - fire-and-forget
+        } catch {
+            // Silently ignore all errors (network, timeout, abort, etc.)
+            // This is intentional to avoid any impact on app UX
         } finally {
             clearTimeout(timeoutId);
         }

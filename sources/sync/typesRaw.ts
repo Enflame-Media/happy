@@ -1,11 +1,13 @@
 import * as z from 'zod';
 import { MessageMetaSchema, MessageMeta } from './typesMessageMeta';
+import { reportValidationMetrics } from './apiAnalytics';
 
 //
 // Validation Metrics
 //
 // Lightweight in-memory counters for tracking schema validation failures.
 // These help monitor CLI↔App message contract health without impacting performance.
+// Metrics are batched and sent to Analytics Engine periodically (HAP-577).
 //
 
 interface ValidationStats {
@@ -80,6 +82,107 @@ function recordValidationFailure(type: 'schema' | 'unknown' | 'strict', unknownT
             validationStats.strictValidationFailures++;
             break;
     }
+}
+
+// ============================================================================
+// Periodic Batch Reporting (HAP-577)
+// ============================================================================
+
+/** App session start time for calculating session duration */
+const sessionStartTime = Date.now();
+
+/** Interval ID for periodic reporting (5 minutes) */
+let reportingIntervalId: ReturnType<typeof setInterval> | null = null;
+
+/** Last reported stats snapshot (to avoid duplicate reports) */
+let lastReportedSnapshot: {
+    schemaFailures: number;
+    unknownTypes: number;
+    strictValidationFailures: number;
+} | null = null;
+
+/**
+ * Flushes validation metrics to Analytics Engine.
+ * Only sends if there are new failures since last report.
+ * Resets counters after successful report to avoid double-counting.
+ */
+export function flushValidationMetrics(): void {
+    const stats = getValidationStats();
+    const totalFailures = stats.schemaFailures + stats.unknownTypes + stats.strictValidationFailures;
+
+    // Skip if no failures to report
+    if (totalFailures === 0) {
+        return;
+    }
+
+    // Skip if nothing changed since last report
+    if (lastReportedSnapshot &&
+        lastReportedSnapshot.schemaFailures === stats.schemaFailures &&
+        lastReportedSnapshot.unknownTypes === stats.unknownTypes &&
+        lastReportedSnapshot.strictValidationFailures === stats.strictValidationFailures) {
+        return;
+    }
+
+    // Convert breakdown map to array format expected by API
+    const unknownTypeBreakdown = Object.entries(stats.unknownTypeBreakdown).map(
+        ([typeName, count]) => ({ typeName, count })
+    );
+
+    // Report to Analytics Engine (fire-and-forget)
+    reportValidationMetrics({
+        schemaFailures: stats.schemaFailures,
+        unknownTypes: stats.unknownTypes,
+        strictValidationFailures: stats.strictValidationFailures,
+        unknownTypeBreakdown,
+        sessionDurationMs: Date.now() - sessionStartTime,
+        firstFailureAt: stats.firstFailureAt,
+        lastFailureAt: stats.lastFailureAt,
+    });
+
+    // Store snapshot to avoid duplicate reports
+    lastReportedSnapshot = {
+        schemaFailures: stats.schemaFailures,
+        unknownTypes: stats.unknownTypes,
+        strictValidationFailures: stats.strictValidationFailures,
+    };
+
+    // Reset counters after reporting to avoid double-counting
+    // Note: We don't reset timestamps as they provide useful session context
+    resetValidationStats();
+}
+
+/**
+ * Starts periodic validation metrics reporting.
+ * Reports every 5 minutes if there are new failures.
+ * Call this once during app initialization.
+ */
+export function startValidationMetricsReporting(): void {
+    // Don't start if already running
+    if (reportingIntervalId !== null) {
+        return;
+    }
+
+    // Report every 5 minutes
+    const REPORT_INTERVAL_MS = 5 * 60 * 1000;
+    reportingIntervalId = setInterval(flushValidationMetrics, REPORT_INTERVAL_MS);
+}
+
+/**
+ * Stops periodic validation metrics reporting.
+ * Flushes any pending metrics before stopping.
+ * Call this during app shutdown or logout.
+ */
+export function stopValidationMetricsReporting(): void {
+    if (reportingIntervalId !== null) {
+        clearInterval(reportingIntervalId);
+        reportingIntervalId = null;
+    }
+
+    // Flush any pending metrics
+    flushValidationMetrics();
+
+    // Clear snapshot
+    lastReportedSnapshot = null;
 }
 
 //
