@@ -7,6 +7,7 @@ import {
     getSessionCorrelationId,
     generateRequestCorrelationId,
     setLastFailedCorrelationId,
+    getShortCorrelationId,
 } from '@/utils/correlationId';
 import * as Crypto from 'expo-crypto';
 
@@ -26,6 +27,17 @@ export interface SyncSocketState {
 }
 
 export type SyncSocketListener = (state: SyncSocketState) => void;
+
+/**
+ * HAP-589: Response with correlation ID for client-side logging.
+ * Enables sync operations to include correlation IDs in debug logs.
+ */
+export interface ResponseWithCorrelation {
+    response: Response;
+    correlationId: string;
+    /** Short form of correlation ID for log messages (e.g., "f1e2d3c4") */
+    shortId: string;
+}
 
 /**
  * Message format for native WebSocket protocol.
@@ -581,6 +593,61 @@ class ApiSocket {
             return response;
         } catch (error) {
             // HAP-585: Store correlation ID for network errors
+            setLastFailedCorrelationId(correlationId);
+            throw error;
+        }
+    }
+
+    /**
+     * HAP-589: Make an HTTP request and return the correlation ID for logging.
+     *
+     * This method wraps the standard request() to also return the correlation ID,
+     * enabling sync operations to include correlation IDs in their log statements.
+     *
+     * @param path - API path (e.g., "/v1/sessions/123/messages")
+     * @param options - Standard fetch options
+     * @returns Response with correlation ID for logging
+     *
+     * @example
+     * ```typescript
+     * const { response, shortId } = await apiSocket.requestWithCorrelation(url);
+     * log.log(`💬 fetchMessages [${shortId}] completed`);
+     * ```
+     */
+    async requestWithCorrelation(path: string, options?: RequestInit): Promise<ResponseWithCorrelation> {
+        if (!this.config) {
+            throw new AppError(ErrorCodes.NOT_CONFIGURED, 'SyncSocket not initialized');
+        }
+
+        const credentials = await TokenStorage.getCredentials();
+        if (!credentials) {
+            throw new AppError(ErrorCodes.NOT_AUTHENTICATED, 'No authentication credentials');
+        }
+
+        const url = `${this.config.endpoint}${path}`;
+        const correlationId = generateRequestCorrelationId();
+        const headers = {
+            'Authorization': `Bearer ${credentials.token}`,
+            [CORRELATION_ID_HEADER]: correlationId,
+            ...options?.headers
+        };
+
+        try {
+            const response = await fetch(url, {
+                ...options,
+                headers
+            });
+
+            if (!response.ok) {
+                setLastFailedCorrelationId(correlationId);
+            }
+
+            return {
+                response,
+                correlationId,
+                shortId: getShortCorrelationId(correlationId)
+            };
+        } catch (error) {
             setLastFailedCorrelationId(correlationId);
             throw error;
         }

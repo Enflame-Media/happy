@@ -688,12 +688,14 @@ export async function sessionKill(sessionId: string): Promise<SessionKillRespons
  */
 export async function sessionDelete(sessionId: string): Promise<{ success: boolean; message?: string }> {
     try {
-        const response = await apiSocket.request(`/v1/sessions/${sessionId}`, {
+        // HAP-589: Use requestWithCorrelation to include correlation ID in logs
+        const { response, shortId } = await apiSocket.requestWithCorrelation(`/v1/sessions/${sessionId}`, {
             method: 'DELETE'
         });
 
         if (response.ok) {
             const _result = await response.json();
+            console.log(`🗑️ sessionDelete [${shortId}]: Successfully deleted session ${sessionId}`);
 
             // Optimistic update: immediately remove from local storage
             // This ensures the UI updates even if the socket delete-session event is delayed/dropped
@@ -713,12 +715,16 @@ export async function sessionDelete(sessionId: string): Promise<{ success: boole
             return { success: true };
         } else {
             const error = await response.text();
+            console.log(`🗑️ sessionDelete [${shortId}]: Failed to delete session ${sessionId}: ${error || 'Unknown error'}`);
             return {
                 success: false,
                 message: error || 'Failed to delete session'
             };
         }
     } catch (error) {
+        // Note: shortId not available here since requestWithCorrelation threw
+        // The correlation ID is still stored via setLastFailedCorrelationId for error UI
+        console.log(`🗑️ sessionDelete: Failed to delete session ${sessionId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         return {
             success: false,
             message: error instanceof Error ? error.message : 'Unknown error'

@@ -133,3 +133,28 @@ export function getLastFailedCorrelationId(): string | null {
 export function clearLastFailedCorrelationId(): void {
     lastFailedCorrelationId = null;
 }
+
+/**
+ * Get a short version of a correlation ID suitable for log messages.
+ *
+ * Extracts the request-specific suffix (e.g., "req-f1e2d3c4") from
+ * a full correlation ID for compact logging.
+ *
+ * @param correlationId - Full correlation ID (format: "sessionId:req-xxxxxxxx")
+ * @returns Short form for logging (e.g., "f1e2d3c4")
+ *
+ * @example
+ * ```typescript
+ * const short = getShortCorrelationId("a1b2c3d4-e5f6-7890-abcd-ef1234567890:req-f1e2d3c4");
+ * // "f1e2d3c4"
+ * ```
+ */
+export function getShortCorrelationId(correlationId: string): string {
+    // Extract the request ID suffix after "req-"
+    const reqMatch = correlationId.match(/:req-([a-f0-9]+)$/);
+    if (reqMatch) {
+        return reqMatch[1];
+    }
+    // Fallback: return last 8 characters
+    return correlationId.slice(-8);
+}

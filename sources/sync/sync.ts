@@ -21,7 +21,7 @@ import { isRunningOnMac } from '@/utils/platform';
 import { NormalizedMessage, normalizeRawMessage, RawRecord } from './typesRaw';
 import { applySettings, Settings, settingsDefaults, settingsParse } from './settings';
 import { Profile, profileParse } from './profile';
-import { loadPendingSettings, savePendingSettings, loadSyncState, saveSyncState } from './persistence';
+import { loadPendingSettings, savePendingSettings, loadSyncState, saveSyncState, loadCachedMessages, saveCachedMessages, cleanupStaleCaches } from './persistence';
 import { initializeTracking, tracking } from '@/track';
 import { parseToken } from '@/utils/parseToken';
 import { RevenueCat, LogLevel, PaywallResult } from './revenueCat';
@@ -362,6 +362,9 @@ class Sync {
         // This enables incremental sync on app restart instead of full fetch
         this.loadPersistedSyncState();
 
+        // HAP-588: Clean up stale message caches (> 30 days old)
+        cleanupStaleCaches();
+
         // Subscribe to updates
         this.subscribeToUpdates();
 
@@ -404,6 +407,35 @@ class Sync {
 
 
     onSessionVisible = (sessionId: string) => {
+        // HAP-588: Load cached messages immediately for instant display
+        // This provides cached data while network fetch happens in background
+        const existingMessages = storage.getState().sessionMessages[sessionId];
+        if (!existingMessages?.isLoaded) {
+            const cachedData = loadCachedMessages(sessionId);
+            if (cachedData && cachedData.messages.length > 0) {
+                log.log(`[HAP-588] Loading ${cachedData.messages.length} cached messages for session ${sessionId}`);
+                // Apply cached messages as NormalizedMessage[]
+                const result = storage.getState().applyMessages(sessionId, cachedData.messages as NormalizedMessage[]);
+                // Restore the lastSeq from cache so incremental sync works
+                if (cachedData.lastSeq !== null) {
+                    this.sessionLastSeq.set(sessionId, cachedData.lastSeq);
+                }
+                // Notify voice hooks about loaded messages
+                if (result.changed.length > 0) {
+                    const m: Message[] = [];
+                    for (const messageId of result.changed) {
+                        const message = storage.getState().sessionMessages[sessionId]?.messagesMap[messageId];
+                        if (message) {
+                            m.push(message);
+                        }
+                    }
+                    if (m.length > 0) {
+                        voiceHooks.onMessages(sessionId, m);
+                    }
+                }
+            }
+        }
+
         let ex = this.messagesSync.get(sessionId);
         if (!ex) {
             ex = new InvalidateSync(() => this.fetchMessages(sessionId));
@@ -1789,9 +1821,11 @@ class Sync {
         const url = lastSeq !== undefined
             ? `/v1/sessions/${sessionId}/messages?sinceSeq=${lastSeq}`
             : `/v1/sessions/${sessionId}/messages`;
-        log.log(`💬 fetchMessages: Requesting ${url} (lastSeq=${lastSeq ?? 'none'})`);
 
-        const response = await apiSocket.request(url);
+        // HAP-589: Use requestWithCorrelation to include correlation ID in logs
+        const { response, shortId } = await apiSocket.requestWithCorrelation(url);
+        log.log(`💬 fetchMessages [${shortId}]: Requesting ${url} (lastSeq=${lastSeq ?? 'none'})`);
+
         const data = await response.json();
         const messages = data.messages as ApiMessage[];
         // HAP-497: Estimate bytes received (JSON serialization approximation)
@@ -1799,7 +1833,7 @@ class Sync {
 
         // No new messages - nothing to process
         if (messages.length === 0) {
-            log.log(`💬 fetchMessages: No new messages for session ${sessionId}`);
+            log.log(`💬 fetchMessages [${shortId}]: No new messages for session ${sessionId}`);
             // HAP-581: Mark messages as loaded even when empty to prevent infinite spinner
             storage.getState().applyMessagesLoaded(sessionId);
             // HAP-497: Log metrics for empty response (still useful for optimization tracking)
@@ -1827,7 +1861,7 @@ class Sync {
         const itemsSkipped = messages.length - messagesToDecrypt.length;
 
         if (messagesToDecrypt.length === 0) {
-            log.log(`💬 fetchMessages: All messages already processed for session ${sessionId}`);
+            log.log(`💬 fetchMessages [${shortId}]: All messages already processed for session ${sessionId}`);
             // HAP-581: Mark messages as loaded even when all duplicates to prevent infinite spinner
             storage.getState().applyMessagesLoaded(sessionId);
             // HAP-497: Log metrics when all messages were duplicates
@@ -1875,7 +1909,12 @@ class Sync {
 
         // Apply to storage
         this.applyMessages(sessionId, normalizedMessages);
-        log.log(`💬 fetchMessages completed for session ${sessionId} - processed ${normalizedMessages.length} messages (maxSeq=${maxSeq})`);
+        log.log(`💬 fetchMessages [${shortId}]: Completed for session ${sessionId} - processed ${normalizedMessages.length} messages (maxSeq=${maxSeq})`);
+
+        // HAP-588: Persist messages to cache for offline access
+        // We merge new normalized messages with any existing cache and persist
+        // This ensures incremental updates are preserved across app restarts
+        this.persistMessagesToCache(sessionId, normalizedMessages, maxSeq);
 
         // HAP-497: Log sync metrics for optimization tracking
         logSyncMetrics({
@@ -2633,6 +2672,63 @@ class Sync {
         }
 
         // daemon-status ephemeral updates are deprecated, machine status is handled via machine-activity
+    }
+
+    //
+    // HAP-588: Message Cache Helpers
+    //
+
+    /**
+     * HAP-588: Persist messages to cache for offline access.
+     * Merges new normalized messages with existing cache and persists.
+     * This ensures incremental updates are preserved across app restarts.
+     *
+     * @param sessionId - The session ID
+     * @param newMessages - Newly fetched normalized messages
+     * @param lastSeq - The highest sequence number in the new messages
+     */
+    private persistMessagesToCache(
+        sessionId: string,
+        newMessages: NormalizedMessage[],
+        lastSeq: number
+    ): void {
+        try {
+            // Load existing cache
+            const existingCache = loadCachedMessages(sessionId);
+            let allMessages: NormalizedMessage[];
+
+            if (existingCache && existingCache.messages.length > 0) {
+                // Merge: existing + new, deduplicated by ID
+                const messageMap = new Map<string, NormalizedMessage>();
+
+                // Add existing messages first
+                for (const msg of existingCache.messages as NormalizedMessage[]) {
+                    if (msg.id) {
+                        messageMap.set(msg.id, msg);
+                    }
+                }
+
+                // Add/overwrite with new messages
+                for (const msg of newMessages) {
+                    if (msg.id) {
+                        messageMap.set(msg.id, msg);
+                    }
+                }
+
+                // Convert back to array and sort by createdAt descending (newest first)
+                allMessages = Array.from(messageMap.values())
+                    .sort((a, b) => b.createdAt - a.createdAt);
+            } else {
+                // No existing cache, just use new messages
+                allMessages = newMessages.slice().sort((a, b) => b.createdAt - a.createdAt);
+            }
+
+            // Persist to cache (saveCachedMessages will limit to MAX_CACHED_MESSAGES_PER_SESSION)
+            saveCachedMessages(sessionId, allMessages, lastSeq);
+        } catch (error) {
+            // Don't let cache persistence failures break message sync
+            console.error(`[HAP-588] Failed to persist messages to cache for ${sessionId}:`, error);
+        }
     }
 
     //
