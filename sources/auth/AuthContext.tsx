@@ -8,6 +8,8 @@ import { trackLogout } from '@/track';
 import { AppError, ErrorCodes } from '@/utils/errors';
 import { authRefreshToken, shouldRefreshToken, TOKEN_REFRESH_CONSTANTS } from '@/auth/authRefreshToken';
 import { resetSessionCorrelationId } from '@/utils/correlationId';
+import { setAnalyticsCredentials } from '@/sync/apiAnalytics';
+import { startValidationMetricsReporting, stopValidationMetricsReporting, flushValidationMetrics } from '@/sync/typesRaw';
 
 interface AuthContextType {
     isAuthenticated: boolean;
@@ -58,6 +60,8 @@ export function AuthProvider({ children, initialCredentials }: { children: React
                 const success = await TokenStorage.setCredentials(newCredentials);
                 if (success) {
                     setCredentials(newCredentials);
+                    // Keep analytics credentials in sync with refreshed token (HAP-583)
+                    setAnalyticsCredentials(newCredentials);
                     console.log('[AuthContext.refreshToken] Token refreshed and stored successfully');
                     return true;
                 }
@@ -89,17 +93,23 @@ export function AuthProvider({ children, initialCredentials }: { children: React
         checkAndRefreshIfNeeded();
     }, [checkAndRefreshIfNeeded]);
 
-    // Check token when app comes to foreground
+    // Check token when app comes to foreground, flush metrics when backgrounded
     useEffect(() => {
         const handleAppStateChange = (nextAppState: AppStateStatus) => {
             if (nextAppState === 'active') {
                 checkAndRefreshIfNeeded();
+            } else if (nextAppState === 'background' || nextAppState === 'inactive') {
+                // Flush validation metrics before app goes to background (HAP-583)
+                // This ensures metrics aren't lost if the OS terminates the app
+                if (credentials) {
+                    flushValidationMetrics();
+                }
             }
         };
 
         const subscription = AppState.addEventListener('change', handleAppStateChange);
         return () => subscription.remove();
-    }, [checkAndRefreshIfNeeded]);
+    }, [checkAndRefreshIfNeeded, credentials]);
 
     // Update global auth state when local state changes
     useEffect(() => {
@@ -120,6 +130,11 @@ export function AuthProvider({ children, initialCredentials }: { children: React
             console.log('[AuthContext.login] syncCreate completed, updating state...');
             setCredentials(newCredentials);
             setIsAuthenticated(true);
+
+            // Initialize validation metrics reporting (HAP-583)
+            setAnalyticsCredentials(newCredentials);
+            startValidationMetricsReporting();
+
             console.log('[AuthContext.login] Done!');
         } else {
             console.log('[AuthContext.login] Failed to save credentials');
@@ -131,6 +146,11 @@ export function AuthProvider({ children, initialCredentials }: { children: React
         trackLogout();
         clearPersistence();
         resetSessionCorrelationId();
+
+        // Flush and stop validation metrics reporting before clearing credentials (HAP-583)
+        stopValidationMetricsReporting(); // This flushes pending metrics
+        setAnalyticsCredentials(null);
+
         await TokenStorage.removeCredentials();
 
         // Update React state to ensure UI consistency

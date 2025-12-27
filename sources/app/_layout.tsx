@@ -24,6 +24,8 @@ import { ToastProvider } from '@/toast';
 import { PostHogProvider } from 'posthog-react-native';
 import { tracking } from '@/track/tracking';
 import { syncRestore } from '@/sync/sync';
+import { setAnalyticsCredentials } from '@/sync/apiAnalytics';
+import { startValidationMetricsReporting } from '@/sync/typesRaw';
 import { useTrackScreens } from '@/track/useTrackScreens';
 import { RealtimeProvider } from '@/realtime/RealtimeProvider';
 import { FaviconPermissionIndicator } from '@/components/web/FaviconPermissionIndicator';
@@ -235,6 +237,12 @@ export default function RootLayout() {
                         }
                         // For other errors, continue with credentials (sync will retry in background)
                     }
+
+                    // Initialize validation metrics reporting (HAP-583)
+                    // Set credentials for fire-and-forget analytics reporting
+                    setAnalyticsCredentials(credentials);
+                    // Start periodic 5-minute batch reporting of validation failures
+                    startValidationMetricsReporting();
                 }
 
                 console.log('[_layout] Setting init state...');
