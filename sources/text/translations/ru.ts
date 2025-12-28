@@ -968,6 +968,29 @@ export const ru: TranslationStructure = {
 
         // Footer
         readOnlyNote: 'Конфигурация MCP доступна только для чтения. Используйте CLI для добавления, удаления или изменения серверов.',
+
+        // Server detail screen (HAP-604)
+        serverNotFound: 'Сервер не найден',
+        serverNotFoundDescription: 'Этот MCP сервер больше недоступен. Возможно, он был удалён или машина офлайн.',
+        noTools: 'Нет доступных инструментов',
+        noToolsDescription: 'Детали инструментов ещё недоступны для этого сервера.',
+        toolCountNote: ({ count }: { count: number }) => {
+            const lastTwo = count % 100;
+            const lastOne = count % 10;
+            if (lastTwo >= 11 && lastTwo <= 19) return `Этот сервер имеет ${count} зарегистрированных инструментов.`;
+            if (lastOne === 1) return `Этот сервер имеет ${count} зарегистрированный инструмент.`;
+            if (lastOne >= 2 && lastOne <= 4) return `Этот сервер имеет ${count} зарегистрированных инструмента.`;
+            return `Этот сервер имеет ${count} зарегистрированных инструментов.`;
+        },
+        toolsAvailable: ({ count }: { count: number }) => {
+            const lastTwo = count % 100;
+            const lastOne = count % 10;
+            if (lastTwo >= 11 && lastTwo <= 19) return `${count} доступных инструментов`;
+            if (lastOne === 1) return `${count} доступный инструмент`;
+            if (lastOne >= 2 && lastOne <= 4) return `${count} доступных инструмента`;
+            return `${count} доступных инструментов`;
+        },
+        toolsReadOnlyNote: 'Конфигурация инструментов доступна только для чтения. Используйте CLI для включения или отключения инструментов.',
     },
 
     textSelection: {

@@ -798,6 +798,15 @@ export const pt: TranslationStructure = {
 
         // Footer
         readOnlyNote: 'A configuração MCP é somente leitura. Use o CLI para adicionar, remover ou modificar servidores.',
+
+        // Server detail screen (HAP-604)
+        serverNotFound: 'Servidor não encontrado',
+        serverNotFoundDescription: 'Este servidor MCP não está mais disponível. Pode ter sido removido ou a máquina está offline.',
+        noTools: 'Sem ferramentas disponíveis',
+        noToolsDescription: 'Os detalhes das ferramentas ainda não estão disponíveis para este servidor.',
+        toolCountNote: ({ count }: { count: number }) => `Este servidor tem ${count} ferramenta${count !== 1 ? 's' : ''} registrada${count !== 1 ? 's' : ''}.`,
+        toolsAvailable: ({ count }: { count: number }) => `${count} ferramenta${count !== 1 ? 's' : ''} disponíve${count !== 1 ? 'is' : 'l'}`,
+        toolsReadOnlyNote: 'A configuração de ferramentas é somente leitura. Use o CLI para ativar ou desativar ferramentas.',
     },
 
     connectButton: {

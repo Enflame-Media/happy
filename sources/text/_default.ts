@@ -799,6 +799,15 @@ export const en = {
 
         // Footer
         readOnlyNote: 'MCP configuration is read-only. Use the CLI to add, remove, or modify servers.',
+
+        // Server detail screen (HAP-604)
+        serverNotFound: 'Server Not Found',
+        serverNotFoundDescription: 'This MCP server is no longer available. It may have been removed or the machine is offline.',
+        noTools: 'No Tools Available',
+        noToolsDescription: 'Tool details are not yet available for this server.',
+        toolCountNote: ({ count }: { count: number }) => `This server has ${count} tool${count !== 1 ? 's' : ''} registered.`,
+        toolsAvailable: ({ count }: { count: number }) => `${count} tool${count !== 1 ? 's' : ''} available`,
+        toolsReadOnlyNote: 'Tool configuration is read-only. Use the CLI to enable or disable tools.',
     },
 
     connectButton: {

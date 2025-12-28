@@ -800,6 +800,15 @@ export const zhHans: TranslationStructure = {
 
         // Footer
         readOnlyNote: 'MCP 配置为只读。请使用 CLI 添加、删除或修改服务器。',
+
+        // Server detail screen (HAP-604)
+        serverNotFound: '服务器未找到',
+        serverNotFoundDescription: '此 MCP 服务器不再可用。它可能已被删除或机器已离线。',
+        noTools: '没有可用工具',
+        noToolsDescription: '此服务器的工具详情尚不可用。',
+        toolCountNote: ({ count }: { count: number }) => `此服务器已注册 ${count} 个工具。`,
+        toolsAvailable: ({ count }: { count: number }) => `${count} 个可用工具`,
+        toolsReadOnlyNote: '工具配置为只读。请使用 CLI 启用或禁用工具。',
     },
 
     connectButton: {

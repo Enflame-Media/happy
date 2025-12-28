@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
 import { Text } from '@/components/StyledText';
 import { useUnistyles } from 'react-native-unistyles';
+import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { t } from '@/text';
 
@@ -22,6 +23,8 @@ export interface McpServerConfig {
     command?: string;
     /** URL for SSE/HTTP servers */
     url?: string;
+    /** List of tool names that are disabled for this server */
+    disabledTools?: string[];
 }
 
 export interface McpServerCardProps {
@@ -41,9 +44,12 @@ export interface McpServerCardProps {
  * - Enabled/disabled status
  * - Tool count (if validated)
  * - Last validation timestamp
+ *
+ * Tapping the card navigates to the server detail screen showing all tools.
  */
 export function McpServerCard({ name, config, readOnly: _readOnly = true }: McpServerCardProps) {
     const { theme } = useUnistyles();
+    const router = useRouter();
 
     const isDisabled = config.disabled === true;
     const toolCount = config.toolCount;
@@ -59,8 +65,20 @@ export function McpServerCard({ name, config, readOnly: _readOnly = true }: McpS
         })
         : null;
 
+    const handlePress = () => {
+        // Navigate to the server detail screen with URL-encoded server name
+        router.push(`/settings/mcp/${encodeURIComponent(name)}`);
+    };
+
     return (
-        <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+        <Pressable
+            onPress={handlePress}
+            style={({ pressed }) => [
+                styles.card,
+                { backgroundColor: theme.colors.surface },
+                pressed && styles.cardPressed
+            ]}
+        >
             <View style={styles.header}>
                 <View style={styles.nameContainer}>
                     <Ionicons
@@ -77,28 +95,35 @@ export function McpServerCard({ name, config, readOnly: _readOnly = true }: McpS
                         {name}
                     </Text>
                 </View>
-                <View
-                    style={[
-                        styles.badge,
-                        {
-                            backgroundColor: isDisabled
-                                ? theme.colors.status.disconnected + '20'
-                                : theme.colors.status.connected + '20'
-                        }
-                    ]}
-                >
-                    <Text
+                <View style={styles.headerRight}>
+                    <View
                         style={[
-                            styles.badgeText,
+                            styles.badge,
                             {
-                                color: isDisabled
-                                    ? theme.colors.status.disconnected
-                                    : theme.colors.status.connected
+                                backgroundColor: isDisabled
+                                    ? theme.colors.status.disconnected + '20'
+                                    : theme.colors.status.connected + '20'
                             }
                         ]}
                     >
-                        {isDisabled ? t('settingsMcp.disabled') : t('settingsMcp.enabled')}
-                    </Text>
+                        <Text
+                            style={[
+                                styles.badgeText,
+                                {
+                                    color: isDisabled
+                                        ? theme.colors.status.disconnected
+                                        : theme.colors.status.connected
+                                }
+                            ]}
+                        >
+                            {isDisabled ? t('settingsMcp.disabled') : t('settingsMcp.enabled')}
+                        </Text>
+                    </View>
+                    <Ionicons
+                        name="chevron-forward"
+                        size={18}
+                        color={theme.colors.textSecondary}
+                    />
                 </View>
             </View>
 
@@ -129,7 +154,7 @@ export function McpServerCard({ name, config, readOnly: _readOnly = true }: McpS
                     </View>
                 )}
             </View>
-        </View>
+        </Pressable>
     );
 }
 
@@ -140,11 +165,19 @@ const styles = StyleSheet.create({
         marginHorizontal: 16,
         marginBottom: 12,
     },
+    cardPressed: {
+        opacity: 0.7,
+    },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 12,
+    },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     nameContainer: {
         flexDirection: 'row',
