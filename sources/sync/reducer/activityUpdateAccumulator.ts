@@ -1,4 +1,5 @@
 import type { ApiEphemeralActivityUpdate } from '../apiTypes';
+import { getSessionIdFromEphemeral } from '@happy/protocol';
 
 export class ActivityUpdateAccumulator {
     private pendingUpdates = new Map<string, ApiEphemeralActivityUpdate>();
@@ -11,7 +12,8 @@ export class ActivityUpdateAccumulator {
     ) {}
 
     addUpdate(update: ApiEphemeralActivityUpdate): void {
-        const sessionId = update.sid; // HAP-654: Standardized to `sid`
+        // HAP-656: Use type-safe helper for session ID extraction
+        const sessionId = getSessionIdFromEphemeral(update);
         const lastState = this.lastEmittedStates.get(sessionId);
 
         // Check if this is a critical timestamp update (more than half of disconnect timeout old)

@@ -53,6 +53,7 @@ import {
     getLastKnownSeq as getLastKnownSeqUtil,
 } from './deltaSyncUtils';
 import { orchestrateDeltaSync } from './deltaSyncOrchestrator';
+import { getSessionId } from '@happy/protocol';
 
 /**
  * HAP-441: Delta sync response type from server.
@@ -2257,11 +2258,13 @@ class Sync {
         }
 
         if (updateData.body.t === 'new-message') {
+            // HAP-656: Use type-safe helper for session ID extraction
+            const sessionId = getSessionId(updateData.body);
 
             // Get encryption
-            const encryption = this.encryption.getSessionEncryption(updateData.body.sid);
+            const encryption = this.encryption.getSessionEncryption(sessionId);
             if (!encryption) { // Should never happen
-                console.error(`Session ${updateData.body.sid} not found`);
+                console.error(`Session ${sessionId} not found`);
                 this.fetchSessions(); // Just fetch sessions again
                 return;
             }
@@ -2274,7 +2277,7 @@ class Sync {
                     lastMessage = normalizeRawMessage(decrypted.id, decrypted.localId, decrypted.createdAt, decrypted.content);
 
                     // Update session
-                    const session = storage.getState().sessions[updateData.body.sid];
+                    const session = storage.getState().sessions[sessionId];
                     if (session) {
                         this.applySessions([{
                             ...session,
@@ -2288,27 +2291,28 @@ class Sync {
 
                     // Update messages
                     if (lastMessage) {
-                        this.applyMessages(updateData.body.sid, [lastMessage]);
+                        this.applyMessages(sessionId, [lastMessage]);
                         let hasMutableTool = false;
                         if (lastMessage.role === 'agent' && lastMessage.content[0] && lastMessage.content[0].type === 'tool-result') {
-                            hasMutableTool = storage.getState().isMutableToolCall(updateData.body.sid, lastMessage.content[0].tool_use_id);
+                            hasMutableTool = storage.getState().isMutableToolCall(sessionId, lastMessage.content[0].tool_use_id);
                         }
                         if (hasMutableTool) {
-                            gitStatusSync.invalidate(updateData.body.sid);
+                            gitStatusSync.invalidate(sessionId);
                         }
                     }
                 }
             }
 
             // Ping session
-            this.onSessionVisible(updateData.body.sid);
+            this.onSessionVisible(sessionId);
 
         } else if (updateData.body.t === 'new-session') {
             log.log('🆕 New session update received');
             this.sessionsSync.invalidate();
         } else if (updateData.body.t === 'delete-session') {
             log.log('🗑️ Delete session update received');
-            const sessionId = updateData.body.sid;
+            // HAP-656: Use type-safe helper for session ID extraction
+            const sessionId = getSessionId(updateData.body);
 
             // Remove session from storage
             storage.getState().deleteSession(sessionId);
@@ -2327,12 +2331,14 @@ class Sync {
 
             log.log(`🗑️ Session ${sessionId} deleted from local storage`);
         } else if (updateData.body.t === 'update-session') {
-            const session = storage.getState().sessions[updateData.body.sid];
+            // HAP-656: Use type-safe helper for session ID extraction
+            const sessionId = getSessionId(updateData.body);
+            const session = storage.getState().sessions[sessionId];
             if (session) {
                 // Get session encryption
-                const sessionEncryption = this.encryption.getSessionEncryption(updateData.body.sid);
+                const sessionEncryption = this.encryption.getSessionEncryption(sessionId);
                 if (!sessionEncryption) {
-                    console.error(`Session encryption not found for ${updateData.body.sid} - this should never happen`);
+                    console.error(`Session encryption not found for ${sessionId} - this should never happen`);
                     return;
                 }
 
@@ -2359,14 +2365,14 @@ class Sync {
 
                 // Invalidate git status when agent state changes (files may have been modified)
                 if (updateData.body.agentState) {
-                    gitStatusSync.invalidate(updateData.body.sid);
+                    gitStatusSync.invalidate(sessionId);
 
                     // Check for new permission requests and notify voice assistant
                     if (agentState?.requests && Object.keys(agentState.requests).length > 0) {
                         const requestIds = Object.keys(agentState.requests);
                         const firstRequest = agentState.requests[requestIds[0]];
                         const toolName = firstRequest?.tool;
-                        voiceHooks.onPermissionRequested(updateData.body.sid, requestIds[0], toolName, firstRequest?.arguments);
+                        voiceHooks.onPermissionRequested(sessionId, requestIds[0], toolName, firstRequest?.arguments);
                     }
 
                     // Re-fetch messages when control returns to mobile (local -> remote mode switch)
@@ -2376,8 +2382,8 @@ class Sync {
                     const wasControlledByUser = Boolean(session.agentState?.controlledByUser);
                     const isNowControlledByUser = Boolean(agentState?.controlledByUser);
                     if (wasControlledByUser === false && isNowControlledByUser === true) {
-                        log.log(`🔄 Control returned to mobile for session ${updateData.body.sid}, re-fetching messages`);
-                        this.onSessionVisible(updateData.body.sid);
+                        log.log(`🔄 Control returned to mobile for session ${sessionId}, re-fetching messages`);
+                        this.onSessionVisible(sessionId);
                     }
                 }
             }
