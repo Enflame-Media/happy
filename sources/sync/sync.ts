@@ -81,7 +81,8 @@ interface DeltaSyncResponse {
  */
 interface SyncMetrics {
     type: 'messages' | 'profile' | 'artifacts';
-    mode: 'full' | 'incremental' | 'cached';
+    // HAP-648: Added 'older' mode for lazy loading older messages
+    mode: 'full' | 'incremental' | 'cached' | 'older';
     bytesReceived: number;
     itemsReceived: number;
     itemsSkipped: number;
@@ -1818,10 +1819,11 @@ class Sync {
         // HAP-497: Track sync mode for metrics
         const isIncremental = lastSeq !== undefined;
 
-        // Request with cursor if we have previous messages
+        // HAP-648: Use v2 API for initial load (paginated, no 150 message limit)
+        // Use v1 API for incremental sync (efficient real-time updates via sinceSeq)
         const url = lastSeq !== undefined
             ? `/v1/sessions/${sessionId}/messages?sinceSeq=${lastSeq}`
-            : `/v1/sessions/${sessionId}/messages`;
+            : `/v2/sessions/${sessionId}/messages?limit=50`;
 
         // HAP-589: Use requestWithCorrelation to include correlation ID in logs
         const { response, shortId } = await apiSocket.requestWithCorrelation(url);
@@ -1829,6 +1831,8 @@ class Sync {
 
         const data = await response.json();
         const messages = data.messages as ApiMessage[];
+        // HAP-648: V2 API returns nextCursor for pagination
+        const nextCursor = isIncremental ? null : (data.nextCursor as string | null);
         // HAP-497: Estimate bytes received (JSON serialization approximation)
         const bytesReceived = JSON.stringify(data).length;
 
@@ -1837,6 +1841,8 @@ class Sync {
             log.log(`💬 fetchMessages [${shortId}]: No new messages for session ${sessionId}`);
             // HAP-581: Mark messages as loaded even when empty to prevent infinite spinner
             storage.getState().applyMessagesLoaded(sessionId);
+            // HAP-648: Set pagination state - no cursor means no older messages
+            storage.getState().setOlderMessagesPagination(sessionId, null, false);
             // HAP-497: Log metrics for empty response (still useful for optimization tracking)
             logSyncMetrics({
                 type: 'messages',
@@ -1865,6 +1871,10 @@ class Sync {
             log.log(`💬 fetchMessages [${shortId}]: All messages already processed for session ${sessionId}`);
             // HAP-581: Mark messages as loaded even when all duplicates to prevent infinite spinner
             storage.getState().applyMessagesLoaded(sessionId);
+            // HAP-648: Set pagination state even when duplicates
+            if (!isIncremental) {
+                storage.getState().setOlderMessagesPagination(sessionId, nextCursor, nextCursor !== null);
+            }
             // HAP-497: Log metrics when all messages were duplicates
             logSyncMetrics({
                 type: 'messages',
@@ -1912,6 +1922,12 @@ class Sync {
         this.applyMessages(sessionId, normalizedMessages);
         log.log(`💬 fetchMessages [${shortId}]: Completed for session ${sessionId} - processed ${normalizedMessages.length} messages (maxSeq=${maxSeq})`);
 
+        // HAP-648: Set pagination state for loading older messages (only on initial load)
+        if (!isIncremental) {
+            storage.getState().setOlderMessagesPagination(sessionId, nextCursor, nextCursor !== null);
+            log.log(`💬 fetchMessages [${shortId}]: Set pagination cursor for ${sessionId} - hasMore=${nextCursor !== null}`);
+        }
+
         // HAP-588: Persist messages to cache for offline access
         // We merge new normalized messages with any existing cache and persist
         // This ensures incremental updates are preserved across app restarts
@@ -1927,6 +1943,92 @@ class Sync {
             durationMs: Date.now() - syncStartTime,
             sessionId
         });
+    }
+
+    /**
+     * HAP-648: Load older messages using v2 paginated API
+     * Called when user scrolls to the top of the message list
+     */
+    loadOlderMessages = async (sessionId: string): Promise<boolean> => {
+        const sessionState = storage.getState().sessionMessages[sessionId];
+
+        // Early exit if no pagination cursor or already loading
+        if (!sessionState?.olderMessagesCursor || sessionState.isLoadingOlder) {
+            log.log(`💬 loadOlderMessages: Skipping for ${sessionId} - cursor=${sessionState?.olderMessagesCursor ?? 'none'}, isLoading=${sessionState?.isLoadingOlder}`);
+            return false;
+        }
+
+        const cursor = sessionState.olderMessagesCursor;
+        log.log(`💬 loadOlderMessages: Starting for session ${sessionId} with cursor ${cursor}`);
+        const syncStartTime = Date.now();
+
+        // Get encryption
+        const encryption = this.encryption.getSessionEncryption(sessionId);
+        if (!encryption) {
+            log.log(`💬 loadOlderMessages: Session encryption not ready for ${sessionId}`);
+            return false;
+        }
+
+        // Set loading state
+        storage.getState().setLoadingOlderMessages(sessionId, true);
+
+        try {
+            // Use v2 API with cursor
+            const url = `/v2/sessions/${sessionId}/messages?cursor=${encodeURIComponent(cursor)}&limit=50`;
+            const { response, shortId } = await apiSocket.requestWithCorrelation(url);
+            log.log(`💬 loadOlderMessages [${shortId}]: Requesting ${url}`);
+
+            const data = await response.json();
+            const messages = data.messages as ApiMessage[];
+            const nextCursor = data.nextCursor as string | null;
+            const bytesReceived = JSON.stringify(data).length;
+
+            if (messages.length === 0) {
+                log.log(`💬 loadOlderMessages [${shortId}]: No older messages for session ${sessionId}`);
+                storage.getState().setOlderMessagesPagination(sessionId, null, false);
+                storage.getState().setLoadingOlderMessages(sessionId, false);
+                return false;
+            }
+
+            // Batch decrypt all messages
+            const decryptedMessages = await encryption.decryptMessages(messages);
+
+            // Process decrypted messages
+            const normalizedMessages: NormalizedMessage[] = [];
+            for (const decrypted of decryptedMessages) {
+                if (decrypted) {
+                    const normalized = normalizeRawMessage(decrypted.id, decrypted.localId, decrypted.createdAt, decrypted.content);
+                    if (normalized) {
+                        normalizedMessages.push(normalized);
+                    }
+                }
+            }
+
+            // Apply to storage (prepends older messages)
+            this.applyMessages(sessionId, normalizedMessages);
+            log.log(`💬 loadOlderMessages [${shortId}]: Completed for session ${sessionId} - processed ${normalizedMessages.length} messages`);
+
+            // Update pagination state
+            storage.getState().setOlderMessagesPagination(sessionId, nextCursor, nextCursor !== null);
+            storage.getState().setLoadingOlderMessages(sessionId, false);
+
+            // Log metrics
+            logSyncMetrics({
+                type: 'messages',
+                mode: 'older',
+                bytesReceived,
+                itemsReceived: normalizedMessages.length,
+                itemsSkipped: 0,
+                durationMs: Date.now() - syncStartTime,
+                sessionId
+            });
+
+            return normalizedMessages.length > 0;
+        } catch (error) {
+            log.log(`💬 loadOlderMessages: Error for ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
+            storage.getState().setLoadingOlderMessages(sessionId, false);
+            return false;
+        }
     }
 
     private registerPushToken = async () => {

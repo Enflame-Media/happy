@@ -21,7 +21,8 @@ import { getServerUrl } from './serverConfig';
  */
 export interface SyncMetricPayload {
     type: 'messages' | 'profile' | 'artifacts';
-    mode: 'full' | 'incremental' | 'cached';
+    // HAP-648: Added 'older' mode for lazy loading older messages
+    mode: 'full' | 'incremental' | 'cached' | 'older';
     bytesReceived: number;
     itemsReceived: number;
     itemsSkipped: number;

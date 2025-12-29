@@ -567,7 +567,11 @@ export const storage = create<StorageState>()((set, get) => {
                         messages: messagesArray,
                         messagesMap: mergedMessagesMap,
                         reducerState: existingSessionMessages.reducerState, // The reducer modifies state in-place, so this has the updates
-                        isLoaded: existingSessionMessages.isLoaded
+                        isLoaded: existingSessionMessages.isLoaded,
+                        // HAP-648: Preserve pagination state when updating messages
+                        olderMessagesCursor: existingSessionMessages.olderMessagesCursor,
+                        hasOlderMessages: existingSessionMessages.hasOlderMessages,
+                        isLoadingOlder: existingSessionMessages.isLoadingOlder
                     };
 
                     // IMPORTANT: Copy latestUsage and usageHistory from reducerState to Session for immediate availability

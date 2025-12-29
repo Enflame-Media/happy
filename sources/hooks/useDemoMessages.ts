@@ -25,7 +25,11 @@ export function useDemoMessages(messages: Message[]) {
                     messages: sortedMessages,
                     messagesMap: messagesMap,
                     reducerState: createReducer(),
-                    isLoaded: true
+                    isLoaded: true,
+                    // HAP-648: Demo sessions don't have older messages to load
+                    olderMessagesCursor: null,
+                    hasOlderMessages: false,
+                    isLoadingOlder: false
                 }
             }
         }));
