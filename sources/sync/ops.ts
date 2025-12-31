@@ -415,6 +415,10 @@ export async function sessionSwitch(sessionId: string, to: 'remote' | 'local'): 
 
 /**
  * Execute a bash command in the session
+ *
+ * HAP-691: Returns a failure response if the RPC result is null.
+ * Null responses occur when decryption fails - this happens when the session
+ * is dead and the machine handler encrypts with the wrong key.
  */
 export async function sessionBash(sessionId: string, request: SessionBashRequest): Promise<SessionBashResponse> {
     try {
@@ -423,6 +427,16 @@ export async function sessionBash(sessionId: string, request: SessionBashRequest
             'bash',
             request
         );
+        // HAP-691: Handle null response from decryption failure
+        if (response === null) {
+            return {
+                success: false,
+                stdout: '',
+                stderr: 'Session not available (decryption failed)',
+                exitCode: -1,
+                error: 'Session not available'
+            };
+        }
         return response;
     } catch (error) {
         return {
@@ -437,6 +451,8 @@ export async function sessionBash(sessionId: string, request: SessionBashRequest
 
 /**
  * Read a file from the session
+ *
+ * HAP-691: Returns a failure response if the RPC result is null.
  */
 export async function sessionReadFile(sessionId: string, path: string): Promise<SessionReadFileResponse> {
     try {
@@ -446,6 +462,13 @@ export async function sessionReadFile(sessionId: string, path: string): Promise<
             'readFile',
             request
         );
+        // HAP-691: Handle null response from decryption failure
+        if (response === null) {
+            return {
+                success: false,
+                error: 'Session not available'
+            };
+        }
         return response;
     } catch (error) {
         return {
@@ -457,6 +480,8 @@ export async function sessionReadFile(sessionId: string, path: string): Promise<
 
 /**
  * Write a file to the session
+ *
+ * HAP-691: Returns a failure response if the RPC result is null.
  */
 export async function sessionWriteFile(
     sessionId: string,
@@ -471,6 +496,13 @@ export async function sessionWriteFile(
             'writeFile',
             request
         );
+        // HAP-691: Handle null response from decryption failure
+        if (response === null) {
+            return {
+                success: false,
+                error: 'Session not available'
+            };
+        }
         return response;
     } catch (error) {
         return {
@@ -482,6 +514,8 @@ export async function sessionWriteFile(
 
 /**
  * List directory contents in the session
+ *
+ * HAP-691: Returns a failure response if the RPC result is null.
  */
 export async function sessionListDirectory(sessionId: string, path: string): Promise<SessionListDirectoryResponse> {
     try {
@@ -491,6 +525,13 @@ export async function sessionListDirectory(sessionId: string, path: string): Pro
             'listDirectory',
             request
         );
+        // HAP-691: Handle null response from decryption failure
+        if (response === null) {
+            return {
+                success: false,
+                error: 'Session not available'
+            };
+        }
         return response;
     } catch (error) {
         return {
@@ -502,6 +543,8 @@ export async function sessionListDirectory(sessionId: string, path: string): Pro
 
 /**
  * Get directory tree from the session
+ *
+ * HAP-691: Returns a failure response if the RPC result is null.
  */
 export async function sessionGetDirectoryTree(
     sessionId: string,
@@ -515,6 +558,13 @@ export async function sessionGetDirectoryTree(
             'getDirectoryTree',
             request
         );
+        // HAP-691: Handle null response from decryption failure
+        if (response === null) {
+            return {
+                success: false,
+                error: 'Session not available'
+            };
+        }
         return response;
     } catch (error) {
         return {
@@ -526,6 +576,8 @@ export async function sessionGetDirectoryTree(
 
 /**
  * Run ripgrep in the session
+ *
+ * HAP-691: Returns a failure response if the RPC result is null.
  */
 export async function sessionRipgrep(
     sessionId: string,
@@ -539,6 +591,13 @@ export async function sessionRipgrep(
             'ripgrep',
             request
         );
+        // HAP-691: Handle null response from decryption failure
+        if (response === null) {
+            return {
+                success: false,
+                error: 'Session not available'
+            };
+        }
         return response;
     } catch (error) {
         return {
@@ -567,6 +626,8 @@ interface SessionGetAllowedCommandsResponse {
 /**
  * Get the list of allowed bash commands from the CLI
  * HAP-635: Returns the command allowlist for display in the UI
+ *
+ * HAP-691: Returns a failure response if the RPC result is null.
  */
 export async function sessionGetAllowedCommands(sessionId: string): Promise<SessionGetAllowedCommandsResponse> {
     try {
@@ -575,12 +636,49 @@ export async function sessionGetAllowedCommands(sessionId: string): Promise<Sess
             'getAllowedCommands',
             {}
         );
+        // HAP-691: Handle null response from decryption failure
+        if (response === null) {
+            return {
+                success: false,
+                error: 'Session not available'
+            };
+        }
         return response;
     } catch (error) {
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error'
         };
+    }
+}
+
+/**
+ * Send session-end event to server to mark session as inactive.
+ * Used when the app knows a session has ended but the CLI couldn't send the event
+ * (e.g., session crashed, or session was already inactive when archive was attempted).
+ *
+ * HAP-689: This is called when sessionKill receives SESSION_NOT_ACTIVE from CLI,
+ * indicating the session was already stopped. We need to tell the server to mark
+ * it as inactive since the CLI can no longer send session-end.
+ *
+ * @param sessionId - The session ID to mark as ended
+ */
+async function sendSessionEnd(sessionId: string): Promise<void> {
+    try {
+        // Send session-end event to server
+        // The server's handleSessionEnd will set active=false
+        await apiSocket.emitWithAck('session-end', {
+            sid: sessionId,
+            time: Date.now()
+        });
+        logger.debug('sendSessionEnd: Successfully sent session-end to server', { sessionId });
+    } catch (error) {
+        // Log but don't throw - this is best-effort
+        // The session will eventually be cleaned up by other mechanisms
+        logger.warn('sendSessionEnd: Failed to send session-end to server', {
+            sessionId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
     }
 }
 
@@ -629,11 +727,52 @@ function waitForSessionOffline(sessionId: string, timeoutMs: number): Promise<vo
 }
 
 // Result types for the race between RPC and offline detection
+// HAP-689/690: Response can be null when decryption fails (wrong encryption key)
+// This happens when CLI session handler is dead and machine handler responds with machine-encrypted data
 type RaceResult =
     | { type: 'offline' }
     | { type: 'offline-timeout' }
-    | { type: 'rpc'; response: SessionKillResponse }
+    | { type: 'rpc'; response: SessionKillResponse | SessionKillRpcError | null }
     | { type: 'rpc-error'; error: unknown };
+
+/**
+ * Error response from CLI when session RPC handler is not registered.
+ * This happens when the session has already stopped/exited on the CLI side,
+ * but the server/app still thinks it's active.
+ *
+ * HAP-689: When killSession receives this error, treat it as a successful kill
+ * since the CLI is telling us the session is no longer active.
+ */
+interface SessionKillRpcError {
+    error: string;
+    code: 'SESSION_NOT_ACTIVE' | 'METHOD_NOT_FOUND' | string;
+    message?: string;
+    cancelled?: boolean;
+}
+
+/**
+ * Check if response indicates the session is not active on the CLI.
+ *
+ * HAP-689/690/691: This function handles three cases:
+ * 1. Response is null - Decryption failed because CLI's machine handler encrypted
+ *    with machine key, but app tried to decrypt with session key. This means
+ *    the session handler was not there to handle the RPC → session is dead.
+ * 2. Response has code 'SESSION_NOT_ACTIVE' - Explicit error from CLI.
+ * 3. Response has code 'METHOD_NOT_FOUND' - RPC method not registered for session.
+ *
+ * In all these cases, the session should be considered inactive on the CLI side.
+ */
+function isSessionNotActiveError(response: SessionKillResponse | SessionKillRpcError | null): boolean {
+    // HAP-690: Null response means decryption failed - session is dead
+    if (response === null) {
+        logger.debug('isSessionNotActiveError: null response (decryption failed), treating as session not active');
+        return true;
+    }
+    // Check for explicit error codes
+    return typeof response === 'object' &&
+           'code' in response &&
+           (response.code === 'SESSION_NOT_ACTIVE' || response.code === 'METHOD_NOT_FOUND');
+}
 
 /**
  * Kill the session process immediately.
@@ -677,8 +816,18 @@ export async function sessionKill(sessionId: string): Promise<SessionKillRespons
     }
 
     if (result.type === 'rpc') {
-        // RPC responded (unlikely for killSession, but handle it)
-        return result.response;
+        // HAP-689/690: Check if CLI returned SESSION_NOT_ACTIVE error or null response.
+        // Null response means decryption failed (session dead, machine encrypted with wrong key).
+        // This means the session already stopped on CLI side - treat as success.
+        // We also need to tell the server to mark it as inactive since CLI can't.
+        if (isSessionNotActiveError(result.response)) {
+            logger.debug('sessionKill: CLI reported session not active, sending session-end to server', { sessionId });
+            await sendSessionEnd(sessionId);
+            return { success: true, message: 'Session already inactive on CLI' };
+        }
+        // RPC responded with actual success/failure
+        // Safe cast: null is handled by isSessionNotActiveError above
+        return result.response as SessionKillResponse;
     }
 
     if (result.type === 'rpc-error') {
@@ -698,7 +847,14 @@ export async function sessionKill(sessionId: string): Promise<SessionKillRespons
     // Offline timeout occurred - wait for RPC to complete
     const rpcResult = await rpcPromise;
     if (rpcResult.type === 'rpc') {
-        return rpcResult.response;
+        // HAP-689/690: Check if CLI returned SESSION_NOT_ACTIVE error or null response
+        if (isSessionNotActiveError(rpcResult.response)) {
+            logger.debug('sessionKill: CLI reported session not active (after offline timeout), sending session-end to server', { sessionId });
+            await sendSessionEnd(sessionId);
+            return { success: true, message: 'Session already inactive on CLI' };
+        }
+        // Safe cast: null is handled by isSessionNotActiveError above
+        return rpcResult.response as SessionKillResponse;
     }
 
     // Check one more time if session went offline

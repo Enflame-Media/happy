@@ -354,6 +354,9 @@ export const zhHans: TranslationStructure = {
         machineOffline: '机器离线',
         noMessagesYet: '暂无消息',
         createdTime: ({ time }: { time: string }) => `创建于 ${time}`,
+        // HAP-648: Message lazy loading states
+        loadingOlderMessages: '加载中...',
+        noMoreMessages: '对话开始',
         // Expandable header metadata section (HAP-326)
         expandableHeader: {
             model: '模型',

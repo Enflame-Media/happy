@@ -554,6 +554,9 @@ export const ru: TranslationStructure = {
         machineOffline: 'Машина не в сети',
         noMessagesYet: 'Сообщений пока нет',
         createdTime: ({ time }: { time: string }) => `Создано ${time}`,
+        // HAP-648: Message lazy loading states
+        loadingOlderMessages: 'Загрузка...',
+        noMoreMessages: 'Начало разговора',
         // Expandable header metadata section (HAP-326)
         expandableHeader: {
             model: 'Модель',

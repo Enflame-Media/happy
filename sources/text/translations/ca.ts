@@ -352,6 +352,9 @@ export const ca: TranslationStructure = {
         machineOffline: 'Màquina fora de línia',
         noMessagesYet: 'Encara no hi ha missatges',
         createdTime: ({ time }: { time: string }) => `Creat ${time}`,
+        // HAP-648: Message lazy loading states
+        loadingOlderMessages: 'Carregant...',
+        noMoreMessages: 'Inici de la conversa',
         // Expandable header metadata section (HAP-326)
         expandableHeader: {
             model: 'Model',
