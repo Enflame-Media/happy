@@ -6,6 +6,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { ItemGroup } from '@/components/ItemGroup';
 import { UsageChart } from './UsageChart';
 import { UsageBar } from './UsageBar';
+import { PlanUsageLimits } from './PlanUsageLimits';
 import { getUsageForPeriod, calculateTotals, UsageDataPoint } from '@/sync/apiUsage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { AppError } from '@/utils/errors';
@@ -201,6 +202,9 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
     
     return (
         <ScrollView style={styles.container}>
+            {/* Plan Usage Limits - Shows for Pro subscribers */}
+            <PlanUsageLimits />
+
             {/* Period Selector */}
             <View style={styles.periodSelector}>
                 {(['today', '7days', '30days'] as TimePeriod[]).map((p) => (

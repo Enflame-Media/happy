@@ -1076,6 +1076,20 @@ export const pt: TranslationStructure = {
         noData: 'Nenhum dado de uso disponível',
     },
 
+    planLimits: {
+        // Plan usage limits widget (HAP-718)
+        title: 'Limites de uso do plano',
+        weeklyLimits: 'Limites semanais',
+        learnMore: 'Saiba mais sobre os limites de uso',
+        used: 'usado',
+        resetsIn: ({ time }: { time: string }) => `Reinicia em ${time}`,
+        resetsAt: ({ time }: { time: string }) => `Reinicia ${time}`,
+        lastUpdated: ({ time }: { time: string }) => `Última atualização: ${time}`,
+        unavailable: 'Os limites de uso não estão disponíveis para o seu provedor atual',
+        currentSession: 'Sessão atual',
+        allModels: 'Todos os modelos',
+    },
+
     feed: {
         // Feed notifications for friend requests and acceptances
         friendRequestFrom: ({ name }: { name: string }) => `${name} enviou-lhe um pedido de amizade`,

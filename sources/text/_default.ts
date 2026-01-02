@@ -765,7 +765,10 @@ export const en = {
         secretKeyCopied: 'Secret key copied to clipboard. Store it in a safe place!',
         secretKeyCopyFailed: 'Failed to copy secret key',
         privacy: 'Privacy',
-        privacyDescription: 'Help improve the app by sharing anonymous usage data. No personal information is collected.',
+        privacyDescription: 'Control your visibility and data sharing preferences.',
+        showOnlineStatus: 'Show Online Status',
+        showOnlineStatusEnabled: 'Friends can see when you\'re online',
+        showOnlineStatusDisabled: 'You appear offline to all friends',
         analytics: 'Analytics',
         analyticsDisabled: 'No data is shared',
         analyticsEnabled: 'Anonymous usage data is shared',
@@ -1076,6 +1079,20 @@ export const en = {
         usageOverTime: 'Usage over time',
         byModel: 'By Model',
         noData: 'No usage data available',
+    },
+
+    planLimits: {
+        // Plan usage limits widget (HAP-718)
+        title: 'Plan usage limits',
+        weeklyLimits: 'Weekly limits',
+        learnMore: 'Learn more about usage limits',
+        used: 'used',
+        resetsIn: ({ time }: { time: string }) => `Resets in ${time}`,
+        resetsAt: ({ time }: { time: string }) => `Resets ${time}`,
+        lastUpdated: ({ time }: { time: string }) => `Last updated: ${time}`,
+        unavailable: 'Usage limits are not available for your current provider',
+        currentSession: 'Current session',
+        allModels: 'All models',
     },
 
     feed: {

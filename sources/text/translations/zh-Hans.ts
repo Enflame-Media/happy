@@ -1078,6 +1078,20 @@ export const zhHans: TranslationStructure = {
         noData: '暂无使用数据',
     },
 
+    planLimits: {
+        // Plan usage limits widget (HAP-718)
+        title: '套餐使用限制',
+        weeklyLimits: '每周限制',
+        learnMore: '了解更多关于使用限制',
+        used: '已使用',
+        resetsIn: ({ time }: { time: string }) => `${time}后重置`,
+        resetsAt: ({ time }: { time: string }) => `重置于 ${time}`,
+        lastUpdated: ({ time }: { time: string }) => `最后更新：${time}`,
+        unavailable: '当前服务商不提供使用限制信息',
+        currentSession: '当前会话',
+        allModels: '所有模型',
+    },
+
     feed: {
         // Feed notifications for friend requests and acceptances
         friendRequestFrom: ({ name }: { name: string }) => `${name} 向您发送了好友请求`,

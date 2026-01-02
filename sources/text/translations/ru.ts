@@ -1120,6 +1120,20 @@ export const ru: TranslationStructure = {
         noData: 'Данные об использовании недоступны',
     },
 
+    planLimits: {
+        // Plan usage limits widget (HAP-718)
+        title: 'Лимиты использования плана',
+        weeklyLimits: 'Еженедельные лимиты',
+        learnMore: 'Подробнее о лимитах использования',
+        used: 'использовано',
+        resetsIn: ({ time }: { time: string }) => `Сброс через ${time}`,
+        resetsAt: ({ time }: { time: string }) => `Сброс ${time}`,
+        lastUpdated: ({ time }: { time: string }) => `Последнее обновление: ${time}`,
+        unavailable: 'Лимиты использования недоступны для вашего текущего провайдера',
+        currentSession: 'Текущая сессия',
+        allModels: 'Все модели',
+    },
+
     feed: {
         // Feed notifications for friend requests and acceptances
         friendRequestFrom: ({ name }: { name: string }) => `${name} отправил вам запрос в друзья`,

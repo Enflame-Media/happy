@@ -1076,6 +1076,20 @@ export const ca: TranslationStructure = {
         noData: "No hi ha dades d'ús disponibles",
     },
 
+    planLimits: {
+        // Plan usage limits widget (HAP-718)
+        title: "Límits d'ús del pla",
+        weeklyLimits: 'Límits setmanals',
+        learnMore: "Més informació sobre els límits d'ús",
+        used: 'utilitzat',
+        resetsIn: ({ time }: { time: string }) => `Es reinicia en ${time}`,
+        resetsAt: ({ time }: { time: string }) => `Es reinicia ${time}`,
+        lastUpdated: ({ time }: { time: string }) => `Última actualització: ${time}`,
+        unavailable: "Els límits d'ús no estan disponibles per al teu proveïdor actual",
+        currentSession: 'Sessió actual',
+        allModels: 'Tots els models',
+    },
+
     feed: {
         // Feed notifications for friend requests and acceptances
         friendRequestFrom: ({ name }: { name: string }) => `${name} t'ha enviat una sol·licitud d'amistat`,
