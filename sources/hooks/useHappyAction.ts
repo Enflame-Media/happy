@@ -3,9 +3,11 @@ import { Modal } from '@/modal';
 import { t } from '@/text';
 import { AppError } from '@/utils/errors';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { useSessionRevival } from '@/hooks/useSessionRevival';
 
 export function useHappyAction(action: () => Promise<void>) {
     const { showError, getErrorMessage } = useErrorHandler();
+    const { handleRpcError } = useSessionRevival();
     const [loading, setLoading] = React.useState(false);
     const loadingRef = React.useRef(false);
     const doAction = React.useCallback(() => {
@@ -34,6 +36,11 @@ export function useHappyAction(action: () => Promise<void>) {
                             }
                             // User chose to retry - continue the while loop
                         } else {
+                            // HAP-743: Check for SESSION_REVIVAL_FAILED before showing generic error
+                            // If handleRpcError returns true, the revival dialog was shown
+                            if (handleRpcError(e)) {
+                                break;
+                            }
                             // HAP-544: Non-retryable errors use showError for "Copy ID" button
                             showError(e);
                             break;
@@ -45,6 +52,6 @@ export function useHappyAction(action: () => Promise<void>) {
                 setLoading(false);
             }
         })();
-    }, [action, showError, getErrorMessage]);
+    }, [action, showError, getErrorMessage, handleRpcError]);
     return [loading, doAction] as const;
 }
