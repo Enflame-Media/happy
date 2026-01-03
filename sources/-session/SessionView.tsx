@@ -19,6 +19,7 @@ import { storage, useIsDataReady, useLocalSetting, useRealtimeStatus, useSession
 import { useSession } from '@/sync/storage';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { useHappyAction } from '@/hooks/useHappyAction';
+import { useSessionRevival } from '@/hooks/useSessionRevival';
 import { AppError, ErrorCodes } from '@/utils/errors';
 import { Toast } from '@/toast';
 import { Session } from '@/sync/storageTypes';
@@ -395,6 +396,7 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     const styles = stylesheet;
     const { messages, isLoaded } = useSessionMessages(sessionId);
     const acknowledgedCliVersions = useLocalSetting('acknowledgedCliVersions');
+    const { handleRpcError } = useSessionRevival();
 
     // HAP-581: Loading timeout state for better error surfacing
     const [loadingTimedOut, setLoadingTimedOut] = useState(false);
@@ -706,7 +708,13 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
             }}
             onMicPress={micButtonState.onMicPress}
             isMicActive={micButtonState.isMicActive}
-            onAbort={() => sessionAbort(sessionId)}
+            onAbort={async () => {
+                try {
+                    await sessionAbort(sessionId);
+                } catch (error) {
+                    handleRpcError(error);
+                }
+            }}
             showAbortButton={sessionStatus.state === 'thinking' || sessionStatus.state === 'waiting'}
             onFileViewerPress={experiments ? () => router.push(`/session/${sessionId}/files`) : undefined}
             // Autocomplete configuration
