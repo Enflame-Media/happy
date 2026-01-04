@@ -60,6 +60,24 @@ export interface SessionRevivalHandler {
     revivalFailed: RevivalFailedState | null;
 
     /**
+     * Whether a session revival is currently in progress.
+     * HAP-752: Used to show SessionRevivalBanner during revival attempts.
+     */
+    reviving: boolean;
+
+    /**
+     * Start the reviving state (show banner).
+     * HAP-752: Call this when a revival attempt begins.
+     */
+    startReviving: () => void;
+
+    /**
+     * Stop the reviving state (hide banner).
+     * HAP-752: Called automatically on success or when transitioning to failure dialog.
+     */
+    stopReviving: () => void;
+
+    /**
      * Handle an RPC error and check if it's a SESSION_REVIVAL_FAILED error.
      * If it is, shows the revival failed dialog automatically.
      *
@@ -96,6 +114,8 @@ export interface SessionRevivalHandler {
  */
 export function useSessionRevival(): SessionRevivalHandler {
     const [revivalFailed, setRevivalFailed] = useState<RevivalFailedState | null>(null);
+    // HAP-752: Track whether a revival attempt is in progress
+    const [reviving, setReviving] = useState(false);
 
     /**
      * Copy session ID to clipboard and show toast.
@@ -103,6 +123,20 @@ export function useSessionRevival(): SessionRevivalHandler {
     const copySessionId = useCallback(async (sessionId: string) => {
         await Clipboard.setStringAsync(sessionId);
         Toast.show({ message: t('session.revival.idCopied') });
+    }, []);
+
+    /**
+     * HAP-752: Start the reviving state to show the banner.
+     */
+    const startReviving = useCallback(() => {
+        setReviving(true);
+    }, []);
+
+    /**
+     * HAP-752: Stop the reviving state to hide the banner.
+     */
+    const stopReviving = useCallback(() => {
+        setReviving(false);
     }, []);
 
     /**
@@ -133,6 +167,8 @@ export function useSessionRevival(): SessionRevivalHandler {
         onArchive?: () => void,
         onRetry?: () => void
     ) => {
+        // HAP-752: Stop reviving state when transitioning to failure dialog
+        setReviving(false);
         // Store the state
         setRevivalFailed({ sessionId, errorMessage });
 
@@ -200,6 +236,9 @@ export function useSessionRevival(): SessionRevivalHandler {
 
     return {
         revivalFailed,
+        reviving,
+        startReviving,
+        stopReviving,
         handleRpcError,
         showRevivalFailedDialog,
         reset

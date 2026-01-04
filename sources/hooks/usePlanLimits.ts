@@ -4,40 +4,10 @@ import { AuthCredentials } from '@/auth/tokenStorage';
 import { getServerUrl } from '@/sync/serverConfig';
 import { authenticatedFetch } from '@/sync/apiHelper';
 import { AppError, ErrorCodes } from '@/utils/errors';
+import type { UsageLimit, PlanLimitsResponse } from '@happy/protocol';
 
-/**
- * Represents a single usage limit category (e.g., session limit, weekly model limit)
- */
-export interface UsageLimit {
-    /** Unique identifier for this limit */
-    id: string;
-    /** Display label (e.g., "Current session", "All models", "Sonnet only") */
-    label: string;
-    /** Percentage used (0-100) */
-    percentageUsed: number;
-    /** Unix timestamp when this limit resets */
-    resetsAt: number;
-    /** Type of reset display: 'countdown' shows "Resets in X hr Y min", 'datetime' shows "Resets Thu 1:59 AM" */
-    resetDisplayType: 'countdown' | 'datetime';
-    /** Optional description or info tooltip text */
-    description?: string;
-}
-
-/**
- * Response structure from the plan limits API
- */
-export interface PlanLimitsResponse {
-    /** Current session usage limit */
-    sessionLimit?: UsageLimit;
-    /** Weekly usage limits (may include per-model breakdowns) */
-    weeklyLimits: UsageLimit[];
-    /** Unix timestamp when this data was last updated */
-    lastUpdatedAt: number;
-    /** Whether the provider exposes limit data (some may not) */
-    limitsAvailable: boolean;
-    /** Provider name for display (e.g., "Anthropic") */
-    provider?: string;
-}
+// Re-export types from @happy/protocol for backward compatibility
+export type { UsageLimit, PlanLimitsResponse } from '@happy/protocol';
 
 /**
  * Hook state for plan limits data
@@ -134,8 +104,13 @@ export function usePlanLimits(): PlanLimitsState {
 
 /**
  * Format a reset time as a countdown string (e.g., "4 hr 8 min")
+ * Returns null if resetsAt is null (limit has no reset time)
  */
-export function formatResetCountdown(resetsAt: number): string {
+export function formatResetCountdown(resetsAt: number | null): string | null {
+    if (resetsAt === null) {
+        return null;
+    }
+
     const now = Date.now();
     const diffMs = resetsAt - now;
 
@@ -158,8 +133,13 @@ export function formatResetCountdown(resetsAt: number): string {
 
 /**
  * Format a reset time as a datetime string (e.g., "Thu 1:59 AM")
+ * Returns null if resetsAt is null (limit has no reset time)
  */
-export function formatResetDatetime(resetsAt: number): string {
+export function formatResetDatetime(resetsAt: number | null): string | null {
+    if (resetsAt === null) {
+        return null;
+    }
+
     const date = new Date(resetsAt);
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const dayName = days[date.getDay()];

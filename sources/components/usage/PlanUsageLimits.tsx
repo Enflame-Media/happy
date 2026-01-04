@@ -135,9 +135,16 @@ interface LimitProgressBarProps {
 const LimitProgressBar: React.FC<LimitProgressBarProps> = ({ limit, color = '#007AFF' }) => {
     const { theme } = useUnistyles();
 
-    const resetTimeText = limit.resetDisplayType === 'countdown'
-        ? t('planLimits.resetsIn', { time: formatResetCountdown(limit.resetsAt) })
-        : t('planLimits.resetsAt', { time: formatResetDatetime(limit.resetsAt) });
+    // Format reset time, handling null case when no reset is scheduled
+    const formattedTime = limit.resetDisplayType === 'countdown'
+        ? formatResetCountdown(limit.resetsAt)
+        : formatResetDatetime(limit.resetsAt);
+
+    const resetTimeText = formattedTime !== null
+        ? (limit.resetDisplayType === 'countdown'
+            ? t('planLimits.resetsIn', { time: formattedTime })
+            : t('planLimits.resetsAt', { time: formattedTime }))
+        : null;
 
     return (
         <View style={styles.limitRow}>
@@ -152,7 +159,9 @@ const LimitProgressBar: React.FC<LimitProgressBarProps> = ({ limit, color = '#00
                     />
                 )}
             </View>
-            <Text style={styles.resetText}>{resetTimeText}</Text>
+            {resetTimeText !== null && (
+                <Text style={styles.resetText}>{resetTimeText}</Text>
+            )}
             <View style={styles.progressBarContainer}>
                 <View style={styles.progressBarWrapper}>
                     <UsageBar
