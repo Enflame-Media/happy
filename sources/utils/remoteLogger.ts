@@ -12,7 +12,17 @@ import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 
 
 let logBuffer: any[] = []
+let currentBufferBytes = 0
 const MAX_BUFFER_SIZE = 1000
+const MAX_BUFFER_BYTES = 5 * 1024 * 1024 // 5MB - prevent memory bloat from large log entries
+
+function estimateEntrySize(entry: any): number {
+  try {
+    return JSON.stringify(entry).length
+  } catch {
+    return 1000 // fallback estimate for circular references
+  }
+}
 
 export function monkeyPatchConsoleForRemoteLoggingForFasterAiAutoDebuggingOnlyInLocalBuilds() {
   // NEVER ENABLE REMOTE LOGGING IN PRODUCTION
@@ -71,9 +81,25 @@ export function monkeyPatchConsoleForRemoteLoggingForFasterAiAutoDebuggingOnlyIn
         level,
         message: args
       }
+      const entrySize = estimateEntrySize(entry)
+
+      // Evict oldest entries until we're under the byte limit
+      while (currentBufferBytes + entrySize > MAX_BUFFER_BYTES && logBuffer.length > 0) {
+        const removed = logBuffer.shift()
+        if (removed) {
+          currentBufferBytes -= estimateEntrySize(removed)
+        }
+      }
+
       logBuffer.push(entry)
+      currentBufferBytes += entrySize
+
+      // Secondary count-based safety limit
       if (logBuffer.length > MAX_BUFFER_SIZE) {
-        logBuffer.shift()
+        const removed = logBuffer.shift()
+        if (removed) {
+          currentBufferBytes -= estimateEntrySize(removed)
+        }
       }
 
       // Send to remote
@@ -91,4 +117,5 @@ export function getLogBuffer() {
 
 export function clearLogBuffer() {
   logBuffer = []
+  currentBufferBytes = 0
 }
