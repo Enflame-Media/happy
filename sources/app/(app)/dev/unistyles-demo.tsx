@@ -83,7 +83,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     responsiveBox: {
         flex: 1,
-        backgroundColor: theme.colors.surface,  // TODO: change to primary
+        backgroundColor: theme.colors.button.primary.background,
         padding: 16,
         borderRadius: 8,
         minHeight: 80,
@@ -118,7 +118,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         fontFamily: 'monospace',
     },
     themeButton: {
-        backgroundColor: theme.colors.surface,  // TODO: change to primary
+        backgroundColor: theme.colors.button.primary.background,
         padding: 12,
         borderRadius: 8,
         marginHorizontal: 4,
@@ -136,7 +136,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         marginBottom: 12,
     },
     adaptiveBox: {
-        backgroundColor: theme.colors.surface,  // TODO: change to primary
+        backgroundColor: theme.colors.button.primary.background,
         padding: {
             xs: 8,
             sm: 12,
@@ -191,7 +191,7 @@ function UnistylesDemo() {
                             Current Theme: {rt.themeName}
                         </Text>
                         <Text style={[styles.themeText, { fontSize: 14, opacity: 0.8 }]}>
-                            Primary: {theme.colors.surface}  // TODO: change to primary
+                            Primary: {theme.colors.button.primary.background}
                         </Text>
                     </View>
 
