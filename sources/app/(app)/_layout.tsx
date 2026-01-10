@@ -231,55 +231,7 @@ export default function RootLayout() {
                     headerBackTitle: t('common.back'),
                 }}
             />
-            <Stack.Screen
-                name="dev/index"
-                options={{
-                    headerTitle: 'Developer Tools',
-                }}
-            />
-
-            <Stack.Screen
-                name="dev/list-demo"
-                options={{
-                    headerTitle: 'List Components Demo',
-                }}
-            />
-            <Stack.Screen
-                name="dev/typography"
-                options={{
-                    headerTitle: 'Typography',
-                }}
-            />
-            <Stack.Screen
-                name="dev/colors"
-                options={{
-                    headerTitle: 'Colors',
-                }}
-            />
-            <Stack.Screen
-                name="dev/tools2"
-                options={{
-                    headerTitle: 'Tool Views Demo',
-                }}
-            />
-            <Stack.Screen
-                name="dev/masked-progress"
-                options={{
-                    headerTitle: 'Masked Progress',
-                }}
-            />
-            <Stack.Screen
-                name="dev/shimmer-demo"
-                options={{
-                    headerTitle: 'Shimmer View Demo',
-                }}
-            />
-            <Stack.Screen
-                name="dev/multi-text-input"
-                options={{
-                    headerTitle: 'Multi Text Input',
-                }}
-            />
+            {/* Dev routes are handled by dev/_layout.tsx which guards them with __DEV__ */}
             <Stack.Screen
                 name="session/recent"
                 options={{

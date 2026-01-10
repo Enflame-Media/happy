@@ -124,8 +124,9 @@ function redactValue(value: unknown): unknown {
 
 /**
  * Redacts all arguments passed to a logger function.
+ * Exported for use by remoteLogger.ts to redact remote logging payloads.
  */
-function redactArgs(args: unknown[]): unknown[] {
+export function redactArgs(args: unknown[]): unknown[] {
   return args.map((arg) => redactValue(arg));
 }
 
