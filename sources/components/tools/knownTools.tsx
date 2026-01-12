@@ -15,7 +15,12 @@ const ICON_READ = (size: number = 24, color: string = '#000') => <Octicons name=
 const ICON_EDIT = (size: number = 24, color: string = '#000') => <Octicons name="file-diff" size={size} color={color} />;
 const ICON_WEB = (size: number = 24, color: string = '#000') => <Ionicons name="globe-outline" size={size} color={color} />;
 const ICON_EXIT = (size: number = 24, color: string = '#000') => <Ionicons name="exit-outline" size={size} color={color} />;
-const ICON_TODO = (size: number = 24, color: string = '#000') => <Ionicons name="bulb-outline" size={size} color={color} />;
+const ICON_CHECKLIST = (size: number = 24, color: string = '#000') => <Octicons name="checklist" size={size} color={color} />;
+
+/**
+ * Fallback icon for unknown/unrecognized tools
+ */
+export const ICON_UNKNOWN_TOOL = (size: number = 24, color: string = '#000') => <Ionicons name="construct-outline" size={size} color={color} />;
 const ICON_REASONING = (size: number = 24, color: string = '#000') => <Octicons name="light-bulb" size={size} color={color} />;
 const ICON_QUESTION = (size: number = 24, color: string = '#000') => <Ionicons name="help-circle-outline" size={size} color={color} />;
 
@@ -339,7 +344,7 @@ export const knownTools = {
     },
     'TodoWrite': {
         title: t('tools.names.todoList'),
-        icon: ICON_TODO,
+        icon: ICON_CHECKLIST,
         noStatus: true,
         minimal: (opts: { metadata: Metadata | null, tool: ToolCall, messages?: Message[] }) => {
             // Check if there are todos in the input

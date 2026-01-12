@@ -15,6 +15,8 @@ export const LocalSettingsSchema = z.object({
     acknowledgedCliVersions: z.record(z.string(), z.string()).describe('Acknowledged CLI versions per machine'),
     // Onboarding
     hasSeenOnboarding: z.boolean().describe('Whether user has completed the onboarding carousel'),
+    // HAP-842: Remote logging toggle for developers
+    remoteLoggingEnabled: z.boolean().describe('Enable remote logging to server (dev only, requires __DEV__ and local server URL)'),
 });
 
 //
@@ -38,6 +40,7 @@ export const localSettingsDefaults: LocalSettings = {
     markdownCopyV2: false,
     acknowledgedCliVersions: {},
     hasSeenOnboarding: false,
+    remoteLoggingEnabled: false,
 };
 Object.freeze(localSettingsDefaults);
 

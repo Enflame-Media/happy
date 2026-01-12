@@ -36,6 +36,7 @@ import { StatusBarProvider } from '@/components/StatusBarProvider';
 import { monkeyPatchConsoleForRemoteLoggingForFasterAiAutoDebuggingOnlyInLocalBuilds } from '@/utils/remoteLogger';
 import { useUnistyles } from 'react-native-unistyles';
 import { AsyncLock } from '@/utils/lock';
+import { initializeCertificatePinning } from '@/utils/certificatePinning';
 import * as Notifications from 'expo-notifications';
 
 // Configure notification handler for foreground notifications
@@ -76,9 +77,8 @@ SplashScreen.preventAutoHideAsync();
 // Set window background color - now handled by Unistyles
 // SystemUI.setBackgroundColorAsync('white');
 
-// NEVER ENABLE REMOTE LOGGING IN PRODUCTION
-// This is for local debugging with AI only
-// So AI will have all the logs easily accessible in one file for analysis
+// Remote logging for local AI debugging - guarded by HAP-836 production guardrails
+// The function enforces: __DEV__ must be true AND server URL must be local/dev only
 if (process.env.EXPO_PUBLIC_DANGEROUSLY_LOG_TO_SERVER_FOR_AI_AUTO_DEBUGGING) {
     monkeyPatchConsoleForRemoteLoggingForFasterAiAutoDebuggingOnlyInLocalBuilds()
 }
@@ -203,8 +203,13 @@ export default function RootLayout() {
                 logger.debug('[_layout] Loading fonts...');
                 setDebugInfo('Loading fonts...');
                 await loadFonts();
-                logger.debug('[_layout] Fonts loaded, waiting for sodium...');
-                setDebugInfo('Fonts loaded, waiting for sodium...');
+                logger.debug('[_layout] Fonts loaded, initializing certificate pinning...');
+                setDebugInfo('Fonts loaded, initializing security...');
+                // HAP-624: Initialize certificate pinning before any API calls
+                // This protects against MITM attacks on all subsequent network requests
+                await initializeCertificatePinning();
+                logger.debug('[_layout] Certificate pinning initialized, waiting for sodium...');
+                setDebugInfo('Security initialized, waiting for sodium...');
                 await sodium.ready;
                 logger.debug('[_layout] Sodium ready, getting credentials...');
                 setDebugInfo('Sodium ready, getting credentials...');

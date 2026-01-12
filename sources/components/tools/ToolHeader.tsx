@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { Text, View } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { ToolCall } from '@/sync/typesMessage';
-import { knownTools } from '@/components/tools/knownTools';
+import { knownTools, ICON_UNKNOWN_TOOL } from '@/components/tools/knownTools';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 interface ToolHeaderProps {
@@ -32,7 +31,7 @@ export function ToolHeader({ tool }: ToolHeaderProps) {
         }
     }
 
-    const icon = knownTool?.icon ? knownTool.icon(18, theme.colors.header.tint) : <Ionicons name="construct-outline" size={18} color={theme.colors.header.tint} />;
+    const icon = knownTool?.icon ? knownTool.icon(18, theme.colors.header.tint) : ICON_UNKNOWN_TOOL(18, theme.colors.header.tint);
 
     // Extract subtitle using the same logic as ToolView
     let subtitle = null;

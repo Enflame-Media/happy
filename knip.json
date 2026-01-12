@@ -12,6 +12,7 @@
   "ignore": [
     "sources/-*/**",
     "sources/trash/**",
+    "sources/**/__testdata__/**",
     "sources/**/*.test.ts",
     "sources/**/*.spec.ts",
     "sources/**/*.appspec.ts",

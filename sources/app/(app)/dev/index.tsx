@@ -171,6 +171,12 @@ function DevScreen() {
                     icon={<Ionicons name="document-text-outline" size={28} color="#007AFF" />}
                     onPress={() => router.push('/dev/logs')}
                 />
+                <Item
+                    title="Remote Logging"
+                    subtitle="Toggle remote logging and view buffer"
+                    icon={<Ionicons name="cloud-upload-outline" size={28} color="#007AFF" />}
+                    onPress={() => router.push('/dev/remote-logging')}
+                />
             </ItemGroup>
 
             {/* Component Demos */}

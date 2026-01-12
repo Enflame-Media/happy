@@ -147,6 +147,17 @@ export default {
                         }
                     }
                 }
+            ],
+            // HAP-624: Disable network inspector for iOS development builds
+            // This is required for certificate pinning to work in dev builds
+            // The network inspector interferes with SSL pinning validation
+            [
+                'expo-build-properties',
+                {
+                    ios: {
+                        networkInspector: false
+                    }
+                }
             ]
         ],
         updates: {

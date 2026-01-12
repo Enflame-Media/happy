@@ -4,11 +4,15 @@ import { createReducer, reducer } from './reducer';
 import { AgentState } from '../storageTypes';
 
 describe('reducer', () => {
+    // HAP-850: Golden case tests are disabled to prevent testdata from being bundled.
+    // Testdata files are in sources/sync/__testdata__/ and are blocked from production
+    // bundles via metro.config.js blockList. If these tests need to be re-enabled,
+    // ensure the testdata is only loaded in test environments.
+    //
     // it('should process golden cases', () => {
-    //     for (let i = 0; i <= 3; i++) {
-
-    //         // Load raw data
-    //         const raw = require(`./__testdata__/log_${i}.json`) as any[];
+    //     for (let i = 0; i <= 2; i++) {
+    //         // Load raw data from testdata (trace_0.json, trace_1.json, trace_2.json)
+    //         const raw = require(`../__testdata__/trace_${i}.json`) as any[];
     //         const rawParsed = raw.map((v: any) => RawRecordSchema.parse(v.content));
     //         for (let i = 0; i < rawParsed.length; i++) {
     //             expect(rawParsed[i]).not.toBeNull();

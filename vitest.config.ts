@@ -20,6 +20,7 @@ export default defineConfig({
                 '**/*.d.ts',
                 '**/*.config.*',
                 '**/mockData/**',
+                '**/__testdata__/**',
                 '**/*.spec.ts',
                 '**/*.test.ts',
             ],

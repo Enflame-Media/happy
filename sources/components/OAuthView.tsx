@@ -13,6 +13,34 @@ import WebView from 'react-native-webview';
 import { t } from '@/text';
 import { Modal } from '@/modal';
 
+/**
+ * HAP-623: Security - Allowed OAuth Origins
+ *
+ * This list defines the domains that are allowed during OAuth flows.
+ * Using originWhitelist={['*']} would allow navigation to any origin,
+ * which could enable phishing attacks where a malicious redirect captures
+ * user credentials during OAuth flows.
+ *
+ * When adding new OAuth providers, add their authorization and token
+ * exchange domains to this list.
+ */
+const ALLOWED_OAUTH_ORIGINS = [
+    // Claude/Anthropic OAuth
+    'https://claude.ai',
+    'https://console.anthropic.com',
+    'https://api.anthropic.com',
+    // Local OAuth callback
+    'http://localhost',
+];
+
+/**
+ * HAP-623: Checks if a URL is from an allowed OAuth origin.
+ * Returns true if the URL starts with any of the allowed origins.
+ */
+function isAllowedOAuthOrigin(url: string): boolean {
+    return ALLOWED_OAUTH_ORIGINS.some(origin => url.startsWith(origin));
+}
+
 const styles = StyleSheet.create((theme) => ({
     container: {
         flex: 1,
@@ -314,22 +342,40 @@ export const OAuthViewRender = React.memo((props: {
         );
     }
 
+    /**
+     * HAP-623: Security - Validate navigation requests to prevent phishing attacks.
+     * Only allows navigation to:
+     * 1. The callback URL (for OAuth code/error handling)
+     * 2. Allowed OAuth origins defined in ALLOWED_OAUTH_ORIGINS
+     */
+    const handleShouldStartLoadWithRequest = React.useCallback((request: { url: string }): boolean => {
+        const url = request.url;
+
+        // Always allow callback URLs - handle OAuth code/error
+        const callbackData = parseCallbackUrl(url);
+        if (callbackData.code || callbackData.error) {
+            handleNavigationStateChange({ url });
+            return false; // We handle this via callback, don't navigate
+        }
+
+        // HAP-623: Block navigation to unknown origins
+        if (!isAllowedOAuthOrigin(url)) {
+            logger.warn(`[OAuthView] Blocked navigation to disallowed origin: ${url}`);
+            return false;
+        }
+
+        return true;
+    }, [handleNavigationStateChange]);
+
     return (
         <>
             <WebView
                 source={{ uri: props.parameters.url }}
                 style={[styles.webview, { backgroundColor: props.backgroundColor }]}
-                originWhitelist={['*']}
+                originWhitelist={ALLOWED_OAUTH_ORIGINS}
                 limitsNavigationsToAppBoundDomains={false}
                 onNavigationStateChange={handleNavigationStateChange}
-                onShouldStartLoadWithRequest={(request) => {
-                    const callbackData = parseCallbackUrl(request.url);
-                    if (callbackData.code || callbackData.error) {
-                        handleNavigationStateChange({ url: request.url });
-                        return false;
-                    }
-                    return true;
-                }}
+                onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
                 onError={handleWebViewError}
                 onLoad={handleWebViewLoad}
                 startInLoadingState={false}

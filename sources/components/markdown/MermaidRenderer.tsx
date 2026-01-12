@@ -309,7 +309,9 @@ export const MermaidRenderer = React.memo((props: {
                     source={{ html }}
                     style={{ flex: 1 }}
                     scrollEnabled={false}
-                    originWhitelist={['*']}
+                    // HAP-623: Block all external navigation - MermaidRenderer only renders local HTML
+                    originWhitelist={[]}
+                    onShouldStartLoadWithRequest={() => false}
                     onMessage={handleWebViewMessage}
                     onError={() => setHasError(true)}
                 />
