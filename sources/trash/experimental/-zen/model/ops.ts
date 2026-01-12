@@ -1,13 +1,13 @@
 import { AuthCredentials } from '@/auth/tokenStorage';
-import { sync } from '../../sync/sync';
-import { storage } from '../../sync/storage';
+import { sync } from '@/sync/sync';
+import { storage } from '@/sync/storage';
 import {
     kvGet,
     kvList,
     kvMutate,
     kvSet,
     KvMutation
-} from '../../sync/apiKv';
+} from '@/sync/apiKv';
 import { randomUUID } from 'expo-crypto';
 import { AsyncLock } from '@/utils/lock';
 

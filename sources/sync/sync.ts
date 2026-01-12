@@ -45,7 +45,11 @@ import { fetchFeed } from './apiFeed';
 import { FeedItem } from './feedTypes';
 import { UserProfile } from './friendTypes';
 import { parseCursorCounterOrDefault, isValidCursor } from './cursorUtils';
-import { initializeTodoSync } from '../-zen/model/ops';
+// HAP-851: Zen is experimental - lazy import to exclude from production bundle
+const initializeTodoSync = async (credentials: any) => {
+    const { initializeTodoSync: init } = await import('../trash/experimental/-zen/model/ops');
+    return init(credentials);
+};
 import { createAdvancedDebounce } from '@/utils/debounce';
 import {
     getEntityTypeFromUpdate as getEntityTypeFromUpdateUtil,
@@ -84,6 +88,12 @@ interface SyncMetrics {
     type: 'messages' | 'profile' | 'artifacts';
     // HAP-648: Added 'older' mode for lazy loading older messages
     mode: 'full' | 'incremental' | 'cached' | 'older';
+    /**
+     * HAP-808: Explicit cache status for accurate cache hit rate tracking.
+     * - 'hit': Data was served from cache (e.g., HTTP 304 response)
+     * - 'miss': Data was fetched from server (new data received)
+     */
+    cacheStatus?: 'hit' | 'miss';
     bytesReceived: number;
     itemsReceived: number;
     itemsSkipped: number;
@@ -1640,9 +1650,11 @@ class Sync {
         if (response.status === 304) {
             log.log('[sync] Profile unchanged (304)');
             // HAP-497: Log cached response as a cache hit (0 bytes transferred)
+            // HAP-808: Explicit cache hit status for accurate metrics
             logSyncMetrics({
                 type: 'profile',
                 mode: 'cached',
+                cacheStatus: 'hit',
                 bytesReceived: 0,
                 itemsReceived: 0,
                 itemsSkipped: 1, // Profile was cached, so 1 item "skipped"
@@ -1682,9 +1694,11 @@ class Sync {
         storage.getState().applyProfile(parsedProfile);
 
         // HAP-497: Log sync metrics - 'incremental' if we sent ETag (conditional), 'full' otherwise
+        // HAP-808: Explicit cache miss status since we received new data
         logSyncMetrics({
             type: 'profile',
             mode: hasETag ? 'incremental' : 'full',
+            cacheStatus: 'miss',
             bytesReceived,
             itemsReceived: 1,
             itemsSkipped: 0,
@@ -1797,7 +1811,7 @@ class Sync {
             storage.getState().applyPurchases(customerInfo);
 
         } catch (error) {
-            console.error('Failed to sync purchases:', error);
+            logger.error('Failed to sync purchases:', error);
             // Don't throw - purchases are optional
         }
     }

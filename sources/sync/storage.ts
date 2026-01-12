@@ -7,7 +7,8 @@ import { NormalizedMessage } from "./typesRaw";
 import { applySettings, Settings } from "./settings";
 import { LocalSettings, applyLocalSettings } from "./localSettings";
 import { Purchases, customerInfoToPurchases } from "./purchases";
-import { TodoState } from "../-zen/model/ops";
+// HAP-851: Zen is experimental - type-only import for TodoState (no runtime impact)
+import type { TodoState } from "../trash/experimental/-zen/model/ops";
 import { Profile } from "./profile";
 import { UserProfile, RelationshipUpdatedEvent } from "./friendTypes";
 import { loadSettings, loadLocalSettings, saveLocalSettings, saveSettings, loadPurchases, savePurchases, loadProfile, saveProfile, loadSessionDrafts, saveSessionDrafts, loadSessionPermissionModes, saveSessionPermissionModes, clearCachedMessages } from "./persistence";

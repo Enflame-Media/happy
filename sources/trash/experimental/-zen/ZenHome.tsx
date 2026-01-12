@@ -7,7 +7,7 @@ import { TodoList } from './components/TodoList';
 import { useUnistyles } from 'react-native-unistyles';
 import { router } from 'expo-router';
 import { storage, useRealtimeStatus } from '@/sync/storage';
-import { toggleTodo as toggleTodoSync, reorderTodos as reorderTodosSync } from '@/-zen/model/ops';
+import { toggleTodo as toggleTodoSync, reorderTodos as reorderTodosSync } from './model/ops';
 import { useAuth } from '@/auth/AuthContext';
 import { useShallow } from 'zustand/react/shallow';
 import { VoiceAssistantStatusBar } from '@/components/VoiceAssistantStatusBar';

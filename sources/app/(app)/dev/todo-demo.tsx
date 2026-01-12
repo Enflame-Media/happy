@@ -2,7 +2,8 @@ import * as React from 'react';
 import { Button, ScrollView, TextInput, View } from "react-native";
 import { randomUUID } from 'expo-crypto';
 import { layout } from '@/components/layout';
-import { TodoList } from '@/-zen/components/TodoList';
+// HAP-851: Zen is experimental - moved to trash/experimental
+import { TodoList } from '@/trash/experimental/-zen/components/TodoList';
 
 function TodoDemoScreen() {
 

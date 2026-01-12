@@ -12,7 +12,8 @@ import { VoiceAssistantStatusBar } from './VoiceAssistantStatusBar';
 import { TabBar, TabType } from './TabBar';
 import { SettingsViewWrapper } from './SettingsViewWrapper';
 import { SessionsListWrapper } from './SessionsListWrapper';
-import { ZenHome } from '@/-zen/ZenHome';
+// HAP-851: Zen is experimental - lazy load only when experiments enabled
+const ZenHome = React.lazy(() => import('@/trash/experimental/-zen/ZenHome').then(m => ({ default: m.ZenHome })));
 
 interface MainViewProps {
     variant: 'phone' | 'sidebar';
@@ -88,7 +89,9 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
             case 'zen':
                 return (
                     <ErrorBoundary name="ZenHome">
-                        <ZenHome />
+                        <React.Suspense fallback={<View style={styles.loadingContainer}><ActivityIndicator size="small" color={theme.colors.textSecondary} /></View>}>
+                            <ZenHome />
+                        </React.Suspense>
                     </ErrorBoundary>
                 );
             case 'settings':
@@ -105,7 +108,7 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
                     </ErrorBoundary>
                 );
         }
-    }, [activeTab]);
+    }, [activeTab, theme.colors.textSecondary]);
 
     // Sidebar variant
     if (variant === 'sidebar') {

@@ -19,7 +19,11 @@ import { sync } from '@/sync/sync';
 import { SessionTypeSelector } from '@/components/SessionTypeSelector';
 import { createWorktree } from '@/utils/createWorktree';
 import { getTempData, type NewSessionData } from '@/utils/tempDataStore';
-import { linkTaskToSession } from '@/-zen/model/taskSessionLink';
+// HAP-851: Zen is experimental - lazy import to exclude from production bundle
+const linkTaskToSession = async (...args: Parameters<typeof import('@/trash/experimental/-zen/model/taskSessionLink').linkTaskToSession>) => {
+    const { linkTaskToSession: link } = await import('@/trash/experimental/-zen/model/taskSessionLink');
+    return link(...args);
+};
 import { PermissionMode, ModelMode } from '@/components/PermissionModeSelector';
 import { AppError, ErrorCodes } from '@/utils/errors';
 import { useErrorHandler } from '@/hooks/useErrorHandler';

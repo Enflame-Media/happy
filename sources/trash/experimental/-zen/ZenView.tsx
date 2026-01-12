@@ -7,13 +7,13 @@ import { Typography } from '@/constants/Typography';
 import { Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { storage } from '@/sync/storage';
-import { toggleTodo, updateTodoTitle, deleteTodo } from '@/-zen/model/ops';
+import { toggleTodo, updateTodoTitle, deleteTodo } from './model/ops';
 import { useAuth } from '@/auth/AuthContext';
 import { useShallow } from 'zustand/react/shallow';
-import { clarifyPrompt } from '@/-zen/model/prompts';
+import { clarifyPrompt } from './model/prompts';
 import { storeTempData, type NewSessionData } from '@/utils/tempDataStore';
 import { toCamelCase } from '@/utils/stringUtils';
-import { removeTaskLinks, getSessionsForTask } from '@/-zen/model/taskSessionLink';
+import { removeTaskLinks, getSessionsForTask } from './model/taskSessionLink';
 
 export const ZenView = React.memo(() => {
     const router = useRouter();
