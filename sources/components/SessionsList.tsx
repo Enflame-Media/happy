@@ -97,7 +97,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         paddingHorizontal: 16,
         backgroundColor: theme.colors.surface,
     },
-    sessionItemContainer: {
+    sessionItemWrapper: {
         marginHorizontal: 16,
         marginBottom: 1,
         overflow: 'hidden',

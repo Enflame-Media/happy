@@ -168,7 +168,7 @@ export function saveNewSessionDraft(draft: NewSessionDraft) {
 }
 
 export function clearNewSessionDraft() {
-    mmkv.delete(NEW_SESSION_DRAFT_KEY);
+    mmkv.remove(NEW_SESSION_DRAFT_KEY);
 }
 
 export function loadSessionPermissionModes(): Record<string, PermissionMode> {
