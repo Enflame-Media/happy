@@ -3,8 +3,18 @@ const path = require("path");
 
 const config = getDefaultConfig(__dirname);
 
-// Monorepo root directory
-const workspaceRoot = path.resolve(__dirname, "..");
+// HAP-850: Exclude test fixtures from production bundles
+// This prevents __testdata__ directories from being bundled into the app,
+// reducing bundle size and avoiding leaking internal test artifacts.
+// HAP-844: Also exclude sources/trash which contains dev-only demo data
+config.resolver.blockList = [
+    /__testdata__\//,
+    /sources\/trash\//,
+];
+
+
+// Monorepo root directory (apps/web/react -> apps/web -> apps -> root)
+const workspaceRoot = path.resolve(__dirname, "../../..");
 
 // Watch the shared @happy packages for changes
 config.watchFolders = [

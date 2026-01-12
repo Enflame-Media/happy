@@ -1,4 +1,4 @@
-// TODO: Not sure where to put this demo data yet - temporary location
+// HAP-844: Dev-only demo data excluded from production bundles via metro.config.js
 // This contains mock message data for development and testing purposes
 
 import { Message, ToolCall } from '@/sync/typesMessage';

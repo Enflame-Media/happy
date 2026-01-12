@@ -9,6 +9,12 @@ export interface AppConfig {
     elevenLabsAgentIdDev?: string;
     elevenLabsAgentIdProd?: string;
     serverUrl?: string;
+    /**
+     * Shared secret token for authenticating dev logging requests.
+     * Must match the server's DEV_LOGGING_TOKEN to send logs.
+     * @security Never log or expose this token value.
+     */
+    devLoggingToken?: string;
 }
 
 /**
@@ -95,6 +101,11 @@ export function loadAppConfig(): AppConfig {
     if (process.env.EXPO_PUBLIC_SERVER_URL && config.serverUrl !== process.env.EXPO_PUBLIC_SERVER_URL) {
         console.log('[loadAppConfig] Override serverUrl from EXPO_PUBLIC_SERVER_URL');
         config.serverUrl = process.env.EXPO_PUBLIC_SERVER_URL;
+    }
+    // HAP-837: Dev logging token for authenticated remote logging
+    // Note: We intentionally do NOT log the token value for security
+    if (process.env.EXPO_PUBLIC_DEV_LOGGING_TOKEN && config.devLoggingToken !== process.env.EXPO_PUBLIC_DEV_LOGGING_TOKEN) {
+        config.devLoggingToken = process.env.EXPO_PUBLIC_DEV_LOGGING_TOKEN;
     }
 
     return config as AppConfig;
